@@ -57,6 +57,18 @@ jobs:
         env:
           WAIT_PORTS: 8080,8070,8060,8050
 
+      - name: Print logs again
+        if: always()
+        run: |
+          echo "------------------------- gateway logs -------------------------"
+          docker compose logs gateway
+          echo "------------------------- loyalty logs -------------------------"
+          docker compose logs loyalty
+          echo "------------------------- payment logs -------------------------"
+          docker compose logs payment
+          echo "------------------------- reservation logs -------------------------"
+          docker compose logs reservation
+
       - name: Run API Tests
         timeout-minutes: 3
         run: ./scripts/test-script.sh
