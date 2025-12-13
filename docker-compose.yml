@@ -1,20 +1,117 @@
-version: "3"
 services:
   postgres:
     image: library/postgres:13
     container_name: postgres
     restart: on-failure
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "postgres"
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./postgres/:/docker-entrypoint-initdb.d/
     ports:
-      - "5432:5432"
+      - "4250:5432"
+    networks:
+      bebroviy-net:
 
-# TODO добавить сервисы
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      bebroviy-net:
+      
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: dockerfile.yml
+    container_name: gateway
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file: ['.env']
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      REDIS_HOST: redis
+      REDIS_URL: 6379
+      RESERVATION_URL: http://reservation:8070
+      PAYMENT_URL: http://payment:8060
+      LOYALTY_URL: http://loyalty:8050
+    depends_on:
+      - postgres
+    networks:
+      bebroviy-net:
+
+  loyalty:
+    build:
+      context: ./services/loyalty
+      dockerfile: dockerfile.yml
+    container_name: loyalty
+    restart: always
+    ports:
+      - "8050:8050"
+    env_file: ['.env']
+    environment:
+      NODE_ENV: production
+      PORT: 8050
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_LOYALTY_NAME}
+    depends_on:
+      - postgres
+    networks:
+      bebroviy-net:
+
+  payment:
+    build:
+      context: ./services/payment
+      dockerfile: dockerfile.yml
+    container_name: payment
+    restart: always
+    ports:
+      - "8060:8060"
+    env_file: ['.env']
+    environment:
+      NODE_ENV: production
+      PORT: 8060
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_PAYMENT_NAME}
+    depends_on:
+      - postgres
+    networks:
+      bebroviy-net:
+
+  reservation:
+    build:
+      context: ./services/reservation
+      dockerfile: dockerfile.yml
+    container_name: reservation
+    restart: always
+    ports:
+      - "8070:8070"
+    env_file: ['.env']
+    environment:
+      NODE_ENV: production
+      PORT: 8070
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_RESERVATION_NAME}
+    depends_on:
+      - postgres
+    networks:
+      bebroviy-net:
 
 volumes:
   db-data:
+
+networks:
+  bebroviy-net:
