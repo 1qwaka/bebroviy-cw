@@ -53,6 +53,8 @@ jobs:
           docker compose logs payment
           echo "------------------------- reservation logs -------------------------"
           docker compose logs reservation
+          echo "------------------------- postgres logs -------------------------"
+          docker compose logs postgres
           ./scripts/wait-script.sh
         env:
           WAIT_PORTS: 8080,8070,8060,8050
@@ -68,6 +70,8 @@ jobs:
           docker compose logs payment
           echo "------------------------- reservation logs -------------------------"
           docker compose logs reservation
+          echo "------------------------- postgres logs -------------------------"
+          docker compose logs postgres
 
       - name: Run API Tests
         timeout-minutes: 3
@@ -89,6 +93,8 @@ jobs:
           docker compose logs payment
           echo "------------------------- reservation logs -------------------------"
           docker compose logs reservation
+          echo "------------------------- postgres logs -------------------------"
+          docker compose logs postgres
 
 
 
