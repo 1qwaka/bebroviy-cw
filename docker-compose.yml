@@ -35,7 +35,7 @@ services:
       NODE_ENV: production
       PORT: 8080
       REDIS_HOST: redis
-      REDIS_URL: 6379
+      REDIS_PORT: 6379
       RESERVATION_URL: http://reservation:8070
       PAYMENT_URL: http://payment:8060
       LOYALTY_URL: http://loyalty:8050
