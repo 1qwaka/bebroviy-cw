@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, ServiceUnavailableException } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -9,6 +9,11 @@ import { CreateReservationDto } from 'src/reservation/dto/create-reservation.dto
 import { HotelService } from 'src/reservation/hotel.service';
 import { LoyaltyService } from 'src/loyalty/loyalty.service';
 import { callAndFallback } from 'src/util/call-and-fallback';
+import { type Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
+import { Payment } from 'src/payment/entity/payment.entity';
+import { RollbackScheduler } from 'src/util/rollback-scheduler';
+import { type CreateReservationParams, CreatereservationUsecase } from 'src/reservation/usecase/create-reservation';
 
 @Controller('reservations')
 export class ReservationController {
@@ -19,6 +24,9 @@ export class ReservationController {
         private readonly hotelService: HotelService,
         private readonly paymentService: PaymentService,
         private readonly loyaltyService: LoyaltyService,
+        @InjectQueue('retry-queue')
+        private readonly retryQueue: Queue<CreateReservationParams>,
+        private readonly createReservation: CreatereservationUsecase,
     ) { }
 
     @Get()
@@ -28,7 +36,7 @@ export class ReservationController {
             () => this.paymentService.findAll({
                 uids: reservations.map(res => res.paymentUid),
             }),
-            () => []
+            () => [] as Payment[]
         )
         return reservations.map(res => ({ 
              ...res,
@@ -66,57 +74,63 @@ export class ReservationController {
     @Delete(':uid')
     @HttpCode(204)
     async delete(@Headers('X-User-Name') username: string, @Param('uid') reservationUid: string) {
-        const reservation = await this.reservationService.cancel(username, reservationUid);
-        const payment = await this.paymentService.cancel(reservation.paymentUid);
-        const loyalty = await this.loyaltyService.update(username, { reservationCountChange: -1 });
-        return reservation
+        const rollbacker = new RollbackScheduler<Promise<unknown>>();
+
+        try {
+            const reservation = await rollbacker.execute(
+                () => this.reservationService.cancel(username, reservationUid),
+                () => this.reservationService.cancelCancelling(username, reservationUid),
+            );
+    
+            const payment = await rollbacker.execute(
+                () => this.paymentService.cancel(reservation.paymentUid),
+                () => this.paymentService.cancelCancelling(reservation.paymentUid)
+            );
+    
+            const loyalty = await rollbacker.execute(
+                () => this.loyaltyService.update(username, { reservationCountChange: -1 }),
+                () => this.loyaltyService.update(username, { reservationCountChange: 1 }),
+            );
+    
+            return reservation
+        } catch {
+            await Promise.all(rollbacker.rollbackSafe());
+            throw new ServiceUnavailableException();
+        }
+
     }
 
     
     @Post()
     @HttpCode(200)
     async create(@Headers('X-User-Name') username: string, @Body() dto: CreateReservationDto) {
-        const hotel = await this.hotelService.findOne(dto.hotelUid);
-        if (!hotel) {
-            throw new NotFoundException(); 
-        }
-        
-        const loyalty = await this.loyaltyService.findOne(username)
-        if (!loyalty) {
-            throw new NotFoundException(); 
-        }
+        console.log('Get create reservaton request')
+        const success = await this.createReservation.execute({ username, dto })
+        if (!success) {
+            console.log(`Failed create reservation with username: ${username}; dto: ${dto}`)
 
-        const nights = this.countNights(dto.startDate, dto.endDate)
-        const price = Math.floor(hotel.price * nights * (1 - loyalty.discount / 100) )
-
-        const payment = await this.paymentService.create({ price })
-     
-        const reservation = await this.reservationService.create({ 
-            ...dto, 
-            username,
-            paymentUid: payment.paymentUid,
-        })
-        
-        const newLoyalty = await this.loyaltyService.update(username, { reservationCountChange: 1 });
+            await this.retryQueue.add('retry-create-reservation', {
+                username, 
+                dto,
+                hotel_: this.createReservation.hotel,
+                loyalty_: this.createReservation.loyalty,
+                payment_: this.createReservation.payment,
+                reservation_: this.createReservation.reservation,
+                newLoyalty_: this.createReservation.newLoyalty,
+            }, {
+                attempts: 5,
+                backoff: 3000,
+                removeOnComplete: true
+            });
+        }
         
         return {
-            ...reservation,
-            payment,
-            hotelUid: reservation.hotel.hotelUid,
-            discount: loyalty.discount,
+            ...this.createReservation.reservation,
+            payment: this.createReservation.payment,
+            hotelUid: this.createReservation.reservation?.hotel.hotelUid,
+            discount: this.createReservation.loyalty?.discount,
         }
     }
 
-    private countNights(startDate: string, endDate: string) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
 
-        const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-        const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-
-        const diffTime = endDay.getTime() - startDay.getTime();
-        const nights = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
-
-        return nights;
-    }
 }

@@ -46,7 +46,7 @@ export class ReservationService {
         return reservation;
     }
 
-    async cancel(reservationUid: string, username: string) {
+    async changeStatus(reservationUid: string, username: string, newStatus: PaymentStatus) {
         const reservation = await this.reservationRepo.findOne({
             where: { reservationUid },
             relations: ['hotel'],
@@ -56,6 +56,14 @@ export class ReservationService {
         }
         reservation.status = PaymentStatus.CANCELED;
         return this.reservationRepo.save(reservation);
+    }
+
+    async cancel(reservationUid: string, username: string) {
+        return this.changeStatus(reservationUid, username, PaymentStatus.CANCELED);
+    }
+
+    async cancelCancelling(reservationUid: string, username: string) {
+        return this.changeStatus(reservationUid, username, PaymentStatus.PAID);
     }
 
 }

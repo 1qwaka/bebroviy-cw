@@ -56,4 +56,12 @@ export class ReservationService {
         ));
         return reservation.data
     }
+
+    async cancelCancelling(username: string, reservationUid: string) {
+        const reservation = await firstValueFrom(this.httpService.delete<Reservation>(
+            `${this.baseUrl}/reservations/${reservationUid}/cancel-cancelling`, 
+            { params: { username } },
+        ));
+        return reservation.data
+    }
 }

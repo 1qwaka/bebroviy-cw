@@ -32,12 +32,20 @@ export class PaymentsService {
         return this.repository.findOneBy({ paymentUid });
     }
 
-    async cancel(paymentUid: string) {
+    cancel(paymentUid: string) {
+        return this.changeStatus(paymentUid, PaymentStatus.CANCELED)
+    }
+
+    cancelCancelling(paymentUid: string) {
+        return this.changeStatus(paymentUid, PaymentStatus.PAID)
+    }
+
+    async changeStatus(paymentUid: string, newStatus: PaymentStatus) {
         const payment = await this.repository.findOneBy({ paymentUid })
         if (!payment) {
             return new NotFoundException()
         }
-        payment.status = PaymentStatus.CANCELED;
+        payment.status = newStatus;
         return this.repository.save(payment);
     }
 

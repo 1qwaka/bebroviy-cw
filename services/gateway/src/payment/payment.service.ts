@@ -57,4 +57,11 @@ export class PaymentService {
         ));
         return res.data;
     }
+
+    async cancelCancelling(paymentUid: string) {
+        const res = await firstValueFrom(this.httpService.delete<Payment>(
+            `${this.baseUrl}/payments/${paymentUid}/cancel-cancelling`, 
+        ));
+        return res.data;
+    }
 }

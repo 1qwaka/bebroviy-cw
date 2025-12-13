@@ -37,4 +37,9 @@ export class ReservationController {
         return this.reservationService.cancel(uid, username);
     }
 
+    @Delete(':id/cancel-cancelling')
+    cancelCancelling(@Param('id') uid: string, @Query('username') username: string) {
+        return this.reservationService.cancelCancelling(uid, username);
+    }
+
 }

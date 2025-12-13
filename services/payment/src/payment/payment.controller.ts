@@ -37,5 +37,10 @@ export class PaymentsController {
     cancel(@Param('id') uid: string) {
         return this.paymentsService.cancel(uid);
     }
+
+    @Delete(':id/cancel-cancelling')
+    cancelCancelling(@Param('id') uid: string) {
+        return this.paymentsService.cancelCancelling(uid);
+    }
    
 }
