@@ -78,6 +78,20 @@ jobs:
           PORT_NUMBER: 8050
 
 
+      - name: Print logs again 2
+        if: always()
+        run: |
+          echo "------------------------- gateway logs -------------------------"
+          docker compose logs gateway
+          echo "------------------------- loyalty logs -------------------------"
+          docker compose logs loyalty
+          echo "------------------------- payment logs -------------------------"
+          docker compose logs payment
+          echo "------------------------- reservation logs -------------------------"
+          docker compose logs reservation
+
+
+
       - uses: education/autograding@v1
         id: autograder
         continue-on-error: true
