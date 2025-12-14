@@ -8,6 +8,7 @@ import { LoyaltyModule } from 'src/loyalty/loyalty.module';
 import { CreatereservationUsecase } from './usecase/create-reservation';
 import { BullModule } from '@nestjs/bull';
 import { ReservationProcessor } from 'src/reservation/reservation.processor';
+import { CancelReservationUsecase } from 'src/reservation/usecase/cancel-reservation';
 
 @Module({
     imports: [
@@ -22,6 +23,7 @@ import { ReservationProcessor } from 'src/reservation/reservation.processor';
         ReservationService, 
         HotelService, 
         CreatereservationUsecase,
+        CancelReservationUsecase,
         ReservationProcessor
     ],
     exports: [ReservationService]

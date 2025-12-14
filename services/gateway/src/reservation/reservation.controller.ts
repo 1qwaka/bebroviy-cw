@@ -1,9 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, NotFoundException, Param, Post, Query, ServiceUnavailableException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Logger, Param, Post, ServiceUnavailableException } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { ConfigService } from '@nestjs/config';
-import { Reservation } from 'src/reservation/entities/reservation.entity';
 import { PaymentService } from 'src/payment/payment.service';
 import { CreateReservationDto } from 'src/reservation/dto/create-reservation.dto';
 import { HotelService } from 'src/reservation/hotel.service';
@@ -14,10 +10,11 @@ import { InjectQueue } from '@nestjs/bull';
 import { Payment } from 'src/payment/entity/payment.entity';
 import { RollbackScheduler } from 'src/util/rollback-scheduler';
 import { type CreateReservationParams, CreatereservationUsecase } from 'src/reservation/usecase/create-reservation';
+import { CancelReservationUsecase } from 'src/reservation/usecase/cancel-reservation';
 
 @Controller('reservations')
 export class ReservationController {
-
+    private readonly logger = new Logger(ReservationController.name);
 
     constructor(
         private readonly reservationService: ReservationService,
@@ -25,8 +22,9 @@ export class ReservationController {
         private readonly paymentService: PaymentService,
         private readonly loyaltyService: LoyaltyService,
         @InjectQueue('retry-queue')
-        private readonly retryQueue: Queue<CreateReservationParams>,
+        private readonly retryQueue: Queue,
         private readonly createReservation: CreatereservationUsecase,
+        private readonly cancelReservation: CancelReservationUsecase,
     ) { }
 
     @Get()
@@ -49,7 +47,6 @@ export class ReservationController {
             payment: payments.find(p => p.paymentUid === res.paymentUid),
         }));
     }
-
 
     @Get(':uid')
     async findOne(@Headers('X-User-Name') username: string, @Param('uid') reservationUid: string) {
@@ -74,61 +71,72 @@ export class ReservationController {
     @Delete(':uid')
     @HttpCode(204)
     async delete(@Headers('X-User-Name') username: string, @Param('uid') reservationUid: string) {
-        const rollbacker = new RollbackScheduler<Promise<unknown>>();
-
+        this.logger.log('Recieve Delete Reservation Request')
         try {
-            const reservation = await rollbacker.execute(
-                () => this.reservationService.cancel(username, reservationUid),
-                () => this.reservationService.cancelCancelling(username, reservationUid),
-            );
-    
-            const payment = await rollbacker.execute(
-                () => this.paymentService.cancel(reservation.paymentUid),
-                () => this.paymentService.cancelCancelling(reservation.paymentUid)
-            );
-    
-            const loyalty = await rollbacker.execute(
-                () => this.loyaltyService.update(username, { reservationCountChange: -1 }),
-                () => this.loyaltyService.update(username, { reservationCountChange: 1 }),
-            );
-    
-            return reservation
-        } catch {
-            await Promise.all(rollbacker.rollbackSafe());
-            throw new ServiceUnavailableException();
-        }
-
-    }
-
-    
-    @Post()
-    @HttpCode(200)
-    async create(@Headers('X-User-Name') username: string, @Body() dto: CreateReservationDto) {
-        console.log('Get create reservaton request')
-        const success = await this.createReservation.execute({ username, dto })
-        if (!success) {
-            console.log(`Failed create reservation with username: ${username}; dto: ${dto}`)
-
-            await this.retryQueue.add('retry-create-reservation', {
+            await this.cancelReservation.execute({ username, reservationUid });
+            this.logger.log('Successfully Deleted Reservation')
+            return this.cancelReservation.cancelledReservation;
+        } catch (err: unknown) {
+            this.logger.error('Error Delete Reservation: ' + err)
+            await this.retryQueue.add('retry-cancel-reservation', {
                 username, 
-                dto,
-                hotel_: this.createReservation.hotel,
-                loyalty_: this.createReservation.loyalty,
-                payment_: this.createReservation.payment,
-                reservation_: this.createReservation.reservation,
-                newLoyalty_: this.createReservation.newLoyalty,
+                reservationUid,
+                cancelledReservation: this.cancelReservation.cancelledReservation,
+                cancelledPayment: this.cancelReservation.cancelledPayment,
+                updatedLoyalty: this.cancelReservation.updatedLoyalty,
             }, {
                 attempts: 5,
                 backoff: 3000,
                 removeOnComplete: true
             });
+
+            return { username, reservationUid };
         }
-        
-        return {
-            ...this.createReservation.reservation,
-            payment: this.createReservation.payment,
-            hotelUid: this.createReservation.reservation?.hotel.hotelUid,
-            discount: this.createReservation.loyalty?.discount,
+    }
+    
+    @Post()
+    @HttpCode(200)
+    async create(@Headers('X-User-Name') username: string, @Body() dto: CreateReservationDto) {
+        this.logger.log('Recieve Create Reservation Request')
+        const rollbacker = new RollbackScheduler<Promise<unknown>>();
+
+        try {
+            const hotel = await this.hotelService.findOne(dto.hotelUid);
+            const loyalty = await this.loyaltyService.findOne(username);
+
+            const nights = this.createReservation.countNights(dto.startDate, dto.endDate)
+            const price = Math.floor(hotel.price * nights * (1 - loyalty.discount / 100))
+    
+            const payment = await rollbacker.execute(
+                () => this.paymentService.create({ price }),
+                () => this.paymentService.cancel(payment.paymentUid)
+            )
+
+            const reservation = await rollbacker.execute(
+                () => this.reservationService.create({ 
+                    ...dto, 
+                    username,
+                    paymentUid: payment.paymentUid,
+                }),
+                () => this.reservationService.cancel(username, reservation.reservationUid),
+            )
+
+            const newLoyalty = await rollbacker.execute(
+                () => this.loyaltyService.update(username, { reservationCountChange: 1 }),
+                () => this.loyaltyService.update(username, { reservationCountChange: -1 }),
+            )
+            
+            this.logger.log('Succuessfully Created Reservation')
+            return {
+                ...reservation,
+                payment,
+                hotelUid: reservation?.hotel.hotelUid,
+                discount: loyalty?.discount,
+            }
+        } catch {
+            this.logger.log('Error Create Reservation')
+            await Promise.all(rollbacker.rollbackSafe());
+            throw new ServiceUnavailableException("Loyalty Service unavailable");
         }
     }
 

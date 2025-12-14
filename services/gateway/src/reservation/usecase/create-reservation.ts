@@ -86,7 +86,7 @@ export class CreatereservationUsecase {
         return true
     }
 
-    private countNights(startDate: string, endDate: string) {
+    public countNights(startDate: string, endDate: string) {
         const start = new Date(startDate);
         const end = new Date(endDate);
 

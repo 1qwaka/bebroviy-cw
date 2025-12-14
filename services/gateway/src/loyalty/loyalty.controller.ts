@@ -1,4 +1,4 @@
-import { Controller, Get, Headers } from '@nestjs/common';
+import { Controller, Get, Headers, ServiceUnavailableException } from '@nestjs/common';
 import { LoyaltyService } from './loyalty.service';
 
 @Controller('loyalty')
@@ -7,7 +7,11 @@ export class LoyaltyController {
 
 
     @Get()
-    findOne(@Headers('X-User-Name') username: string) {
-        return this.loyaltyService.findOne(username);
+    async findOne(@Headers('X-User-Name') username: string) {
+        try {
+            return await this.loyaltyService.findOne(username);
+        } catch {
+            throw new ServiceUnavailableException("Loyalty Service unavailable");
+        }
     }
 }

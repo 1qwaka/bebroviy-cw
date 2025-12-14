@@ -29,7 +29,7 @@ export class AppController {
         
         const loyalty = await callAndFallback(
             () => this.loyaltyService.findOne(username),
-            () => ({ username })
+            () => ({ })
         );
 
         const payments = await callAndFallback(
