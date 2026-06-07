@@ -72,26 +72,26 @@ export class ReservationController {
     @HttpCode(204)
     async delete(@Headers('X-User-Name') username: string, @Param('uid') reservationUid: string) {
         this.logger.log('Recieve Delete Reservation Request')
-        try {
+        // try {
             await this.cancelReservation.execute({ username, reservationUid });
             this.logger.log('Successfully Deleted Reservation')
             return this.cancelReservation.cancelledReservation;
-        } catch (err: unknown) {
-            this.logger.error('Error Delete Reservation: ' + err)
-            await this.retryQueue.add('retry-cancel-reservation', {
-                username, 
-                reservationUid,
-                cancelledReservation: this.cancelReservation.cancelledReservation,
-                cancelledPayment: this.cancelReservation.cancelledPayment,
-                updatedLoyalty: this.cancelReservation.updatedLoyalty,
-            }, {
-                attempts: 5,
-                backoff: 3000,
-                removeOnComplete: true
-            });
+        // } catch (err: unknown) {
+        //     this.logger.error('Error Delete Reservation: ' + err)
+        //     await this.retryQueue.add('retry-cancel-reservation', {
+        //         username, 
+        //         reservationUid,
+        //         cancelledReservation: this.cancelReservation.cancelledReservation,
+        //         cancelledPayment: this.cancelReservation.cancelledPayment,
+        //         updatedLoyalty: this.cancelReservation.updatedLoyalty,
+        //     }, {
+        //         attempts: 5,
+        //         backoff: 3000,
+        //         removeOnComplete: true
+        //     });
 
-            return { username, reservationUid };
-        }
+        //     return { username, reservationUid };
+        // }
     }
     
     @Post()

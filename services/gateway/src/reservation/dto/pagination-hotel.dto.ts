@@ -4,10 +4,10 @@ import { IsInt, IsOptional, Min } from "class-validator";
 export class PaginationHotelDto {
 
     @IsInt()
-    @Min(0)
+    @Min(1)
     @IsOptional()
     @Type(() => Number)
-    page: number = 0;
+    page: number = 1;
 
     @IsInt()
     @Min(0)

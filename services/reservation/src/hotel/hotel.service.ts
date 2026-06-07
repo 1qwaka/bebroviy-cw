@@ -35,7 +35,7 @@ export class HotelService {
     
     findAll(paginationDto: PaginationHotelDto) {
         return this.repository.findAndCount({
-            skip: (paginationDto.page - 1) * paginationDto.size,
+            skip: paginationDto.page * paginationDto.size,
             take: paginationDto.size,
         });
     }

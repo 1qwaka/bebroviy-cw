@@ -23,7 +23,10 @@ export class HotelService {
 
     async findAll(data: PaginationHotelDto) {
         const res = await this.cb.fire(() => firstValueFrom(
-            this.httpService.get<PaginationModel<Hotel>>(`${this.baseUrl}/hotels`, { params: data })
+            this.httpService.get<PaginationModel<Hotel>>(`${this.baseUrl}/hotels`, { params: {
+                page: data.page - 1,
+                size: data.size,
+            } })
         ));
         return res.data;
     }
