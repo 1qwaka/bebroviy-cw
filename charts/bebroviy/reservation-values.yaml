@@ -1,0 +1,14 @@
+name: reservation
+image: 1qwaka/reservation:v1.0
+containerPort: 8080
+clusterPort: 80
+
+
+ingress:
+  enabled: false
+
+env:
+  PORT: '8080'
+  DB_NAME: reservations
+  DB_PORT: '5432'
+  DB_HOST: postgres-postgresql

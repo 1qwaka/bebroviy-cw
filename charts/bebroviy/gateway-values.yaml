@@ -1,0 +1,15 @@
+name: gateway
+image: 1qwaka/gateway:v1.0
+containerPort: 8080
+clusterPort: 80
+
+ingress:
+  enabled: true
+
+env:
+  PORT: '8080'
+  RESERVATION_URL: http://reservation-svc:80
+  PAYMENT_URL: http://payment-svc:80
+  LOYALTY_URL: http://loyalty-svc:80
+  REDIS_HOST: ''
+  REDIS_PORT: '4251'

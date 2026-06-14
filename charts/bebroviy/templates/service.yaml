@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.name }}-svc
+spec:
+  selector:
+    app: {{ .Values.name }}-app
+  ports:
+    - port: {{ .Values.clusterPort }}
+      targetPort: {{ .Values.containerPort }}

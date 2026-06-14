@@ -26,6 +26,7 @@ services:
     build:
       context: ./services/gateway
       dockerfile: dockerfile.yml
+    image: 1qwaka/gateway:v1.0
     container_name: gateway
     restart: always
     ports:
@@ -49,6 +50,7 @@ services:
       context: ./services/loyalty
       dockerfile: dockerfile.yml
     container_name: loyalty
+    image: 1qwaka/loyalty:v1.0
     restart: always
     ports:
       - "8050:8050"
@@ -71,6 +73,7 @@ services:
       context: ./services/payment
       dockerfile: dockerfile.yml
     container_name: payment
+    image: 1qwaka/payment:v1.0
     restart: always
     ports:
       - "8060:8060"
@@ -93,6 +96,7 @@ services:
       context: ./services/reservation
       dockerfile: dockerfile.yml
     container_name: reservation
+    image: 1qwaka/reservation:v1.0
     restart: always
     ports:
       - "8070:8070"
