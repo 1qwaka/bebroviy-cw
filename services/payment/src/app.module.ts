@@ -4,12 +4,14 @@ import { AppService } from './app.service';
 import { PaymentsModule } from './payment/payment.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
     imports: [
         ConfigModule.forRoot({
             isGlobal: true,
         }),
+        AuthModule,
         PaymentsModule,
         TypeOrmModule.forRootAsync({
             inject: [ConfigService],

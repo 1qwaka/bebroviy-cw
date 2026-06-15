@@ -20,6 +20,10 @@ export class ReservationService {
         private readonly config: ConfigService,
     ) {
         this.baseUrl = config.getOrThrow<string>('RESERVATION_URL');
+        this.httpService.axiosRef.interceptors.request.use(config => {
+
+            return config;
+        })
     }
 
     async create(data: CreateReservationInternalDto) {

@@ -5,6 +5,7 @@ import { ReservationModule } from './reservation/reservation.module';
 import { HotelModule } from './hotel/hotel.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
     imports: [
@@ -24,6 +25,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
                 autoLoadEntities: true,
             }),
         }),
+        AuthModule,
         HotelModule,
         ReservationModule,
     ],

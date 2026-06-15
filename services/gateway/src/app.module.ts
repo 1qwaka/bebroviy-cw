@@ -7,7 +7,7 @@ import { ReservationModule } from './reservation/reservation.module';
 import { PaymentModule } from './payment/payment.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { BullModule } from '@nestjs/bull';
-import { ReservationProcessor } from 'src/reservation/reservation.processor';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
     imports: [
@@ -22,6 +22,7 @@ import { ReservationProcessor } from 'src/reservation/reservation.processor';
                 },
             })
         }),
+        AuthModule,
         ReservationModule,
         PaymentModule,
         LoyaltyModule,

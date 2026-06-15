@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoyaltyModule } from './loyalty/loyalty.module';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
     imports: [
@@ -23,6 +24,7 @@ import { LoyaltyModule } from './loyalty/loyalty.module';
                 autoLoadEntities: true,
             }),
         }),
+        AuthModule,
         LoyaltyModule,
     ],
     controllers: [AppController],
