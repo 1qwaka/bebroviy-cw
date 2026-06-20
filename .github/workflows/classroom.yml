@@ -55,7 +55,7 @@ jobs:
 
       - name: Setup /etc/hosts
         run: echo "127.0.0.1 my-app.local" | sudo tee -a /etc/hosts
-        
+
       - name: Start Minikube & Enable Ingress
         run: |
           echo "=== Start Minikube ==="
@@ -136,21 +136,15 @@ jobs:
       - name: Setup Port Forwarding
         run: |
           echo "=== Setup port forwarding to Ingress on port 8080 ==="
-          kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 8080:80 &
+          kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 80:80 &
           echo $! > /tmp/pf-ingress.pid
 
           echo "=== Setup port forwarding to IDP on port 8090 ==="
           kubectl port-forward svc/idp-svc 8090:80 &
           echo $! > /tmp/pf-idp.pid
 
-          minikube tunnel &
-          echo $! > /tmp/tunnel.pid
-          
           sleep 10
           
-          curl -f http://localhost:8080/manage/health || echo "Gateway OK"
-          curl -f http://localhost:8090/manage/health || echo "IDP OK"
-
       - name: Run Postman Tests
         uses: matt-ball/newman-action@master
         with:
@@ -198,7 +192,7 @@ jobs:
       - name: Cleanup Port Forwarding
         if: always()
         run: |
-          for pidfile in /tmp/pf-ingress.pid /tmp/pf-idp.pid /tmp/tunnel.pid; do
+          for pidfile in /tmp/pf-ingress.pid /tmp/pf-idp.pid; do
             if [ -f "$pidfile" ]; then
               kill $(cat "$pidfile") 2>/dev/null || true
               rm -f "$pidfile"
