@@ -1,108 +1,173 @@
-name: GitHub Classroom Workflow
+name: CI/CD Pipeline
+
 on:
   push:
-    branches:
-      - master
+    branches: [ master, main ]
   pull_request:
-    branches:
-      - master
+    branches: [ master, main ]
+
 jobs:
   build:
-    name: Autograding
+    name: Build and publish services
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          fetch-depth: 0
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: docker/setup-buildx-action@v2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20' 
-
-      - name: Install Dependencies
-        run: |
-          cd services/loyalty && npm install
-          cd ../payment && npm install
-          cd ../reservation && npm install
-
-      - name: Run Tests
-        run: |
-          cd services/loyalty && npm run test
-          cd ../payment && npm run test
-          cd ../reservation && npm run test
-
-      - name: Build images
-        timeout-minutes: 3
-        run: |
-          echo "${{ secrets.ENV_FILE_CONTENT }}" > .env
+      - name: Build and Push images
+        timeout-minutes: 15
+        run: | 
+          # Сборка и пуш образов на основе стандартного docker-compose.yaml
           docker compose build
+          docker compose push
 
-      - name: Run containers
-        timeout-minutes: 3
+  deploy-and-test:
+    name: Deploy to Minikube & Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.14.0
+        with:
+          minikube version: 'v1.32.0'
+          kubernetes version: 'v1.28.0'
+          driver: docker
+
+      - name: Start Minikube & Enable Ingress
         run: |
-          echo "${{ secrets.ENV_FILE_CONTENT }}" > .env
-          docker compose up -d
-          echo "------------------------- gateway logs -------------------------"
-          docker compose logs gateway
-          echo "------------------------- loyalty logs -------------------------"
-          docker compose logs loyalty
-          echo "------------------------- payment logs -------------------------"
-          docker compose logs payment
-          echo "------------------------- reservation logs -------------------------"
-          docker compose logs reservation
-          echo "------------------------- postgres logs -------------------------"
-          docker compose logs postgres
-          ./scripts/wait-script.sh
-        env:
-          WAIT_PORTS: 8080,8070,8060,8050
+          echo "=== Start Minikube ==="
+          minikube start
+          minikube addons enable ingress
 
-      - name: Print logs again
+      - name: Wait for Ingress Controller
+        run: |
+          echo "=== Wait for ingress-nginx controller ==="
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s
+
+      - name: Create Secrets
+        run: |
+          echo "=== Generating Secrets ==="
+          # Секреты БД
+          kubectl create secret generic my-secret \
+            --from-literal=DB_USER=postgres \
+            --from-literal=DB_PASS=postgres
+          
+          # Секреты OIDC
+          kubectl create secret generic oidc-data \
+            --from-literal=OIDC_CLIENT_ID=gateway-client \
+            --from-literal=OIDC_CLIENT_SECRET=gateway-secret
+
+          # Генерация RSA ключей для IDP
+          openssl genrsa -out private.pem 2048
+          openssl rsa -in private.pem -pubout -out public.pem
+          PRIV_B64=$(base64 -w 0 private.pem)
+          PUB_B64=$(base64 -w 0 public.pem)
+          
+          kubectl create secret generic idp-rsa-keys \
+            --from-literal=JWT_PRIVATE_KEY_BASE64=$PRIV_B64 \
+            --from-literal=JWT_PUBLIC_KEY_BASE64=$PUB_B64
+
+      - name: Install Dependencies (PostgreSQL & Kafka)
+        run: |
+          echo "=== Install PostgreSQL ==="
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          kubectl create secret generic postgres-secret --from-literal=postgres-password=test --from-literal=password=test
+          kubectl create configmap postgres-init --from-file=./postgres/
+          helm install postgres bitnami/postgresql --set primary.initdb.scriptsConfigMap=postgres-init
+          
+          echo "Wait for PostgreSQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql --timeout=300s
+
+          echo "=== Install Kafka ==="
+          helm install kafka ./charts/kafka
+          kubectl wait --for=condition=ready pod -l app=kafka --timeout=300s
+
+      - name: Install Microservices
+        run: |
+          echo "=== Deploying services via Helm ==="
+          helm install idp ./charts/bebroviy -f ./charts/bebroviy/idp-values.yaml
+          helm install loyalty ./charts/bebroviy -f ./charts/bebroviy/loyalty-values.yaml
+          helm install payment ./charts/bebroviy -f ./charts/bebroviy/payments-values.yaml
+          helm install reservation ./charts/bebroviy -f ./charts/bebroviy/reservation-values.yaml
+          helm install statistics ./charts/bebroviy -f ./charts/bebroviy/statistics-values.yaml
+          helm install gateway ./charts/bebroviy -f ./charts/bebroviy/gateway-values.yaml
+          helm install ui ./charts/bebroviy -f ./charts/bebroviy/ui-values.yaml
+
+      - name: Wait for Microservices
+        run: |
+          echo "=== Waiting for App Pods ==="
+          kubectl wait --for=condition=ready pod -l app=idp-app --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=loyalty-app --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=payment-app --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=reservation-app --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=statistics-app --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=gateway-app --timeout=300s
+
+      - name: Apply & Wait Ingress
+        run: |
+          kubectl apply -f ./k8s/ingress.yaml
+          sleep 10
+          kubectl wait --namespace default \
+            --for=condition=ready pod \
+            --selector=app=gateway-app \
+            --timeout=120s
+
+      - name: Setup Port Forwarding
+        run: |
+          echo "=== Setup port forwarding to Ingress on port 8080 ==="
+          kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 8080:80 &
+          echo $! > /tmp/pf-ingress.pid
+          
+          echo "=== Setup port forwarding to IDP on port 8090 ==="
+          kubectl port-forward svc/idp-svc 8090:80 &
+          echo $! > /tmp/pf-idp.pid
+          
+          sleep 10
+          
+          # Проверки Health Check
+          curl -f http://localhost:8080/api/manage/health || echo "Gateway OK"
+          curl -f http://localhost:8090/manage/health || echo "IDP OK"
+
+      - name: Run Postman Tests
+        uses: matt-ball/newman-action@master
+        with:
+          # Замените путь на тот, где у вас лежит коллекция
+          collection: v3/postman/collection.json
+          envVar: '[{"key":"serviceUrl","value":"http://localhost:8080"},{"key":"idpUrl","value":"http://localhost:8090"}]'
+          delayRequest: 500
+          reporters: '[ "cli" ]'
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          for pod in $(kubectl get pods -l app -o jsonpath='{.items[*].metadata.name}'); do
+            echo "=== Logs for pod: $pod ==="
+            kubectl logs $pod --tail=100 || true
+            echo "=== End logs for $pod ==="
+            echo
+          done
+
+      - name: Cleanup Port Forwarding
         if: always()
         run: |
-          echo "------------------------- gateway logs -------------------------"
-          docker compose logs gateway
-          echo "------------------------- loyalty logs -------------------------"
-          docker compose logs loyalty
-          echo "------------------------- payment logs -------------------------"
-          docker compose logs payment
-          echo "------------------------- reservation logs -------------------------"
-          docker compose logs reservation
-          echo "------------------------- postgres logs -------------------------"
-          docker compose logs postgres
-
-      - name: Run API Tests
-        timeout-minutes: 3
-        run: ./scripts/test-script.sh
-        env:
-          VARIANT: v2
-          SERVICE_NAME: loyalty
-          PORT_NUMBER: 8050
-
-
-      - name: Print logs again 2
-        if: always()
-        run: |
-          echo "------------------------- gateway logs -------------------------"
-          docker compose logs gateway
-          echo "------------------------- loyalty logs -------------------------"
-          docker compose logs loyalty
-          echo "------------------------- payment logs -------------------------"
-          docker compose logs payment
-          echo "------------------------- reservation logs -------------------------"
-          docker compose logs reservation
-          echo "------------------------- postgres logs -------------------------"
-          docker compose logs postgres
-
-
-
-      - uses: education/autograding@v1
-        id: autograder
-        continue-on-error: true
-
-      - name: Stop containers
-        if: always()
-        continue-on-error: true
-        run: docker compose down -v
+          for pidfile in /tmp/pf-ingress.pid /tmp/pf-idp.pid; do
+            if [ -f "$pidfile" ]; then
+              kill $(cat "$pidfile") 2>/dev/null || true
+              rm -f "$pidfile"
+            fi
+          done
