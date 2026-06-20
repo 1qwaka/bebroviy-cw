@@ -14,26 +14,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v2
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push images
-        timeout-minutes: 15
-        run: | 
-          touch .env
+      # - name: Build and Push images
+      #   timeout-minutes: 15
+      #   run: | 
+      #     touch .env
           
-          echo "POSTGRES_USER=dummy" >> .env
-          echo "POSTGRES_PASSWORD=dummy" >> .env
-          echo "POSTGRES_DB=dummy" >> .env
+      #     echo "POSTGRES_USER=dummy" >> .env
+      #     echo "POSTGRES_PASSWORD=dummy" >> .env
+      #     echo "POSTGRES_DB=dummy" >> .env
           
-          docker compose build
-          docker compose push
+      #     docker compose build
+      #     docker compose push
 
   deploy-and-test:
     name: Deploy to Minikube & Test
@@ -65,14 +65,14 @@ jobs:
           kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
-            --timeout=300s
+            --timeout=180s
       
       - name: Create Secrets
         run: |
           echo "=== Generating Secrets ==="
           kubectl create secret generic my-secret \
-            --from-literal=DB_USER=postgres \
-            --from-literal=DB_PASS=postgres
+            --from-literal=DB_USER=program \
+            --from-literal=DB_PASS=test
           
           kubectl create secret generic oidc-data \
             --from-literal=OIDC_CLIENT_ID=gateway-client \
@@ -96,14 +96,14 @@ jobs:
           helm install postgres bitnami/postgresql --set primary.initdb.scriptsConfigMap=postgres-init
           
           echo "Wait for PostgreSQL to be ready..."
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql --timeout=300s
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql --timeout=180s
 
       - name: Install Kafka
         run: |
           echo "=== Install Kafka ==="
           helm install kafka ./charts/kafka
           echo "Wait for Kafka to be ready..."
-          kubectl wait --for=condition=ready pod -l app=kafka --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=kafka --timeout=180s
 
       - name: Install Microservices
         run: |
@@ -113,12 +113,12 @@ jobs:
       - name: Wait for Microservices
         run: |
           echo "=== Waiting for App Pods ==="
-          kubectl wait --for=condition=ready pod -l app=idp-app --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=loyalty-app --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=payment-app --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=reservation-app --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=statistics-app --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=gateway-app --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=idp-app --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=loyalty-app --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=payment-app --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=reservation-app --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=statistics-app --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=gateway-app --timeout=180s
 
       - name: Apply & Wait Ingress
         run: |
