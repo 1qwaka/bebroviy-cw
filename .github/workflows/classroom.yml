@@ -155,6 +155,11 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: |
+          echo "=== Cluster state ==="
+          kubectl get pods -o wide
+          kubectl get events --sort-by='.lastTimestamp' | tail -30
+
+
           for pod in $(kubectl get pods -l app -o jsonpath='{.items[*].metadata.name}'); do
             echo "=== Logs for pod: $pod ==="
             kubectl logs $pod || true
@@ -164,6 +169,17 @@ jobs:
             echo "=== End describe for pod: $pod ==="
             echo
           done
+
+          echo ""
+          echo "=== Statistics pod deep debug ==="
+          
+          kubectl get pod -l app=statistics-app -o yaml
+          
+          kubectl describe pod -l app=statistics-app
+          
+          kubectl logs -l app=statistics-app --all-containers=true || true
+          
+          kubectl logs -l app=statistics-app --all-containers=true --previous || true
 
       - name: Cleanup Port Forwarding
         if: always()
