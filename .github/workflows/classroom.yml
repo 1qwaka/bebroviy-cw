@@ -14,26 +14,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v2
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push images
-        timeout-minutes: 15
-        run: | 
-          touch .env
+      # - name: Build and Push images
+      #   timeout-minutes: 15
+      #   run: | 
+      #     touch .env
           
-          echo "POSTGRES_USER=dummy" >> .env
-          echo "POSTGRES_PASSWORD=dummy" >> .env
-          echo "POSTGRES_DB=dummy" >> .env
+      #     echo "POSTGRES_USER=dummy" >> .env
+      #     echo "POSTGRES_PASSWORD=dummy" >> .env
+      #     echo "POSTGRES_DB=dummy" >> .env
           
-          docker compose build
-          docker compose push
+      #     docker compose build
+      #     docker compose push
 
   deploy-and-test:
     name: Deploy to Minikube & Test
@@ -129,26 +129,39 @@ jobs:
             --selector=app=gateway-app \
             --timeout=120s
 
+      - name: Setup /etc/hosts
+        run: echo "127.0.0.1 my-app.local" >> /etc/hosts
+
       - name: Setup Port Forwarding
         run: |
           echo "=== Setup port forwarding to Ingress on port 8080 ==="
           kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 8080:80 &
           echo $! > /tmp/pf-ingress.pid
-          
+
           echo "=== Setup port forwarding to IDP on port 8090 ==="
           kubectl port-forward svc/idp-svc 8090:80 &
           echo $! > /tmp/pf-idp.pid
+
+          minikube tunnel &
+          echo $! > /tmp/tunnel.pid
           
           sleep 10
           
-          curl -f http://localhost:8080/api/manage/health || echo "Gateway OK"
+          curl -f http://localhost:8080/manage/health || echo "Gateway OK"
           curl -f http://localhost:8090/manage/health || echo "IDP OK"
 
       - name: Run Postman Tests
         uses: matt-ball/newman-action@master
         with:
           collection: v2/postman/tests.json
-          envVar: '[{"key":"serviceUrl","value":"http://localhost:8080"},{"key":"idpUrl","value":"http://localhost:8090"},{"key":"clientId","value":"gateway-client"},{"key":"clientSecret","value":"gateway-secret"},{"key":"redirectUri","value":"http://localhost:8080"}]'
+          envVar: |
+            [
+              {"key":"serviceUrl","value":"http://my-app.local"},
+              {"key":"idpUrl","value":"http://my-app.local"},
+              {"key":"clientId","value":"gateway-client"},
+              {"key":"clientSecret","value":"gateway-secret"},
+              {"key":"redirectUri","value":"http://my-app.local/callback"}
+            ]
           delayRequest: 500
           reporters: '[ "cli" ]'
 
@@ -184,7 +197,7 @@ jobs:
       - name: Cleanup Port Forwarding
         if: always()
         run: |
-          for pidfile in /tmp/pf-ingress.pid /tmp/pf-idp.pid; do
+          for pidfile in /tmp/pf-ingress.pid /tmp/pf-idp.pid /tmp/tunnel.pid; do
             if [ -f "$pidfile" ]; then
               kill $(cat "$pidfile") 2>/dev/null || true
               rm -f "$pidfile"
