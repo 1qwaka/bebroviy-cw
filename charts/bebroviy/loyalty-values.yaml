@@ -1,5 +1,5 @@
 name: loyalty
-image: 1qwaka/loyalty:v1.4
+image: 1qwaka/loyalty:v1.5
 containerPort: 8080
 clusterPort: 80
 

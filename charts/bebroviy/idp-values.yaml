@@ -1,5 +1,5 @@
 name: idp
-image: 1qwaka/idp:v1.4
+image: 1qwaka/idp:v1.5
 containerPort: 8080
 clusterPort: 80
 
