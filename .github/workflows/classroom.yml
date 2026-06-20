@@ -50,6 +50,9 @@ jobs:
           kubernetes version: 'v1.28.0'
           driver: docker
 
+      - name: Install Just
+        uses: extractions/setup-just@v3
+
       - name: Start Minikube & Enable Ingress
         run: |
           echo "=== Start Minikube ==="
@@ -63,7 +66,7 @@ jobs:
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
             --timeout=300s
-
+      
       - name: Create Secrets
         run: |
           echo "=== Generating Secrets ==="
@@ -75,38 +78,37 @@ jobs:
             --from-literal=OIDC_CLIENT_ID=gateway-client \
             --from-literal=OIDC_CLIENT_SECRET=gateway-secret
 
-          PRIV_B64=$(base64 -w 0 private.pem)
-          PUB_B64=$(base64 -w 0 public.pem)
+          PRIV_B64=$(base64 -w 0 v2/test-private.pem)
+          PUB_B64=$(base64 -w 0 v2/test-public.pem)
           
           kubectl create secret generic idp-rsa-keys \
             --from-literal=JWT_PRIVATE_KEY_BASE64=$PRIV_B64 \
             --from-literal=JWT_PUBLIC_KEY_BASE64=$PUB_B64
 
-      - name: Install Dependencies (PostgreSQL & Kafka)
+      - name: Install PostgreSQL
         run: |
           echo "=== Install PostgreSQL ==="
           helm repo add bitnami https://charts.bitnami.com/bitnami
+          
           kubectl create secret generic postgres-secret --from-literal=postgres-password=test --from-literal=password=test
           kubectl create configmap postgres-init --from-file=./postgres/
+          
           helm install postgres bitnami/postgresql --set primary.initdb.scriptsConfigMap=postgres-init
           
           echo "Wait for PostgreSQL to be ready..."
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql --timeout=300s
 
+      - name: Install Kafka
+        run: |
           echo "=== Install Kafka ==="
           helm install kafka ./charts/kafka
+          echo "Wait for Kafka to be ready..."
           kubectl wait --for=condition=ready pod -l app=kafka --timeout=300s
 
       - name: Install Microservices
         run: |
           echo "=== Deploying services via Helm ==="
-          helm install idp ./charts/bebroviy -f ./charts/bebroviy/idp-values.yaml
-          helm install loyalty ./charts/bebroviy -f ./charts/bebroviy/loyalty-values.yaml
-          helm install payment ./charts/bebroviy -f ./charts/bebroviy/payments-values.yaml
-          helm install reservation ./charts/bebroviy -f ./charts/bebroviy/reservation-values.yaml
-          helm install statistics ./charts/bebroviy -f ./charts/bebroviy/statistics-values.yaml
-          helm install gateway ./charts/bebroviy -f ./charts/bebroviy/gateway-values.yaml
-          helm install ui ./charts/bebroviy -f ./charts/bebroviy/ui-values.yaml
+          just install-all-services
 
       - name: Wait for Microservices
         run: |
@@ -139,16 +141,14 @@ jobs:
           
           sleep 10
           
-          # Проверки Health Check
           curl -f http://localhost:8080/api/manage/health || echo "Gateway OK"
           curl -f http://localhost:8090/manage/health || echo "IDP OK"
 
       - name: Run Postman Tests
         uses: matt-ball/newman-action@master
         with:
-          # Замените путь на тот, где у вас лежит коллекция
-          collection: v3/postman/collection.json
-          envVar: '[{"key":"serviceUrl","value":"http://localhost:8080"},{"key":"idpUrl","value":"http://localhost:8090"}]'
+          collection: v2/postman/tests.json
+          envVar: '[{"key":"serviceUrl","value":"http://localhost:8080"},{"key":"idpUrl","value":"http://localhost:8090"},{"key":"clientId","value":"gateway-client"},{"key":"clientSecret","value":"gateway-secret"},{"key":"redirectUri","value":"http://localhost:8080"}]'
           delayRequest: 500
           reporters: '[ "cli" ]'
 

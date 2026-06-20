@@ -52,4 +52,4 @@ kubectl create secret generic idp-rsa-keys --from-literal=JWT_PRIVATE_KEY_BASE64
 
 ### кафка
 
-helm install kafka bitnami/kafka --set kraft.enabled=true --set zookeeper.enabled=false --set replicaCount=1 --set listeners.client.protocol=PLAINTEXT --set image.tag=3.7.0-debian-12-r10
+helm install kafka ./charts/kafka

@@ -17,6 +17,7 @@ stop:
 tunnel:
     minikube tunnel
 
+# открывает веб дашборд для просмотра информации о кластере в браузере
 dashboard:
     minikube dashboard
 
@@ -31,10 +32,12 @@ install-postgres:
     kubectl create configmap postgres-init --from-file=./postgres/
     helm install postgres bitnami/postgresql --set primary.initdb.scriptsConfigMap=postgres-init
 
+# удаляет чарт кафки + связанный volume
 remove-kafka:
     helm uninstall kafka
     kubectl delete pvc -l app.kubernetes.io/instance=kafka
 
+# устанавливает кафку в кластер
 install-kafka:
     helm install kafka bitnami/kafka --set kraft.enabled=true --set zookeeper.enabled=false --set replicaCount=1 --set listeners.client.protocol=PLAINTEXT --set image.tag=3.7.0-debian-12-r10
 
@@ -49,6 +52,7 @@ publish-images:
     docker-compose build
     docker-compose push
 
+# добавление всех сервисов в кластер
 install-all-services:
     helm install idp charts/bebroviy -f charts/bebroviy/idp-values.yaml
     helm install ui charts/bebroviy -f charts/bebroviy/ui-values.yaml
@@ -58,6 +62,7 @@ install-all-services:
     helm install gateway charts/bebroviy -f charts/bebroviy/gateway-values.yaml
     helm install statistics charts/bebroviy -f charts/bebroviy/statistics-values.yaml
 
+# удаление всех сервисов из кластера
 uninstall-all-services:
     helm uninstall idp
     helm uninstall ui
