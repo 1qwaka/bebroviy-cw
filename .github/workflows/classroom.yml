@@ -142,7 +142,7 @@ jobs:
         run: |
           echo "=== Setup port forwarding to Ingress on port 8080 ==="
           KUBECONFIG=/home/runner/.kube/config \
-          sudo --preserve-env=KUBECONFIG \ 
+          sudo --preserve-env=KUBECONFIG \
           kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 80:80 &
           echo $! > /tmp/pf-ingress.pid
 
