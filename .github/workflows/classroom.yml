@@ -53,6 +53,9 @@ jobs:
       - name: Install Just
         uses: extractions/setup-just@v3
 
+      - name: Setup /etc/hosts
+        run: echo "127.0.0.1 my-app.local" | sudo tee -a /etc/hosts
+        
       - name: Start Minikube & Enable Ingress
         run: |
           echo "=== Start Minikube ==="
@@ -129,8 +132,6 @@ jobs:
             --selector=app=gateway-app \
             --timeout=120s
 
-      - name: Setup /etc/hosts
-        run: echo "127.0.0.1 my-app.local" >> /etc/hosts
 
       - name: Setup Port Forwarding
         run: |
