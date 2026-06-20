@@ -17,13 +17,6 @@ spec:
           image: {{ .Values.image }}
           ports:
             - containerPort: {{ .Values.containerPort }}
-          resources:
-            limits:
-              memory: "128Mi"
-              cpu: "1000m"
-            requests:
-              memory: "64Mi"
-              cpu: "500m"
           env:
             {{- range $key, $val := .Values.env }}
             - name: {{ $key }}
