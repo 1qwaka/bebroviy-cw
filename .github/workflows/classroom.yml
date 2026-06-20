@@ -62,19 +62,14 @@ jobs:
       - name: Create Secrets
         run: |
           echo "=== Generating Secrets ==="
-          # Секреты БД
           kubectl create secret generic my-secret \
             --from-literal=DB_USER=postgres \
             --from-literal=DB_PASS=postgres
           
-          # Секреты OIDC
           kubectl create secret generic oidc-data \
             --from-literal=OIDC_CLIENT_ID=gateway-client \
             --from-literal=OIDC_CLIENT_SECRET=gateway-secret
 
-          # Генерация RSA ключей для IDP
-          openssl genrsa -out private.pem 2048
-          openssl rsa -in private.pem -pubout -out public.pem
           PRIV_B64=$(base64 -w 0 private.pem)
           PUB_B64=$(base64 -w 0 public.pem)
           
