@@ -136,7 +136,7 @@ jobs:
       - name: Setup Port Forwarding
         run: |
           echo "=== Setup port forwarding to Ingress on port 8080 ==="
-          kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 80:80 &
+          sudo kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 80:80 &
           echo $! > /tmp/pf-ingress.pid
 
           echo "=== Setup port forwarding to IDP on port 8090 ==="
