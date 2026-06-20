@@ -113,12 +113,12 @@ jobs:
       - name: Wait for Microservices
         run: |
           echo "=== Waiting for App Pods ==="
-          kubectl wait --for=condition=ready pod -l app=idp-app --timeout=180s
-          kubectl wait --for=condition=ready pod -l app=loyalty-app --timeout=180s
-          kubectl wait --for=condition=ready pod -l app=payment-app --timeout=180s
-          kubectl wait --for=condition=ready pod -l app=reservation-app --timeout=180s
-          kubectl wait --for=condition=ready pod -l app=statistics-app --timeout=180s
-          kubectl wait --for=condition=ready pod -l app=gateway-app --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=idp-app --timeout=30s
+          kubectl wait --for=condition=ready pod -l app=loyalty-app --timeout=30s
+          kubectl wait --for=condition=ready pod -l app=payment-app --timeout=30s
+          kubectl wait --for=condition=ready pod -l app=reservation-app --timeout=30s
+          kubectl wait --for=condition=ready pod -l app=statistics-app --timeout=30s
+          kubectl wait --for=condition=ready pod -l app=gateway-app --timeout=30s
 
       - name: Apply & Wait Ingress
         run: |
@@ -157,8 +157,11 @@ jobs:
         run: |
           for pod in $(kubectl get pods -l app -o jsonpath='{.items[*].metadata.name}'); do
             echo "=== Logs for pod: $pod ==="
-            kubectl logs $pod --tail=100 || true
+            kubectl logs $pod || true
             echo "=== End logs for $pod ==="
+            echo "=== Describe for pod: $pod ==="
+            kubectl describe pod $pod || true
+            echo "=== End describe for pod: $pod ==="
             echo
           done
 
