@@ -132,11 +132,18 @@ jobs:
             --selector=app=gateway-app \
             --timeout=120s
 
-
+      - name: Debug kubeconfig
+        run: |
+          echo "KUBECONFIG=$KUBECONFIG"
+          ls -la ~/.kube/ || echo "no .kube dir"
+          sudo kubectl config view || echo "sudo cant read config"
+          
       - name: Setup Port Forwarding
         run: |
           echo "=== Setup port forwarding to Ingress on port 8080 ==="
-          sudo kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 80:80 &
+          KUBECONFIG=/home/runner/.kube/config \
+          sudo --preserve-env=KUBECONFIG \ 
+          kubectl port-forward service/ingress-nginx-controller -n ingress-nginx 80:80 &
           echo $! > /tmp/pf-ingress.pid
 
           echo "=== Setup port forwarding to IDP on port 8090 ==="
