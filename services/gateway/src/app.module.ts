@@ -8,6 +8,9 @@ import { PaymentModule } from './payment/payment.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { BullModule } from '@nestjs/bull';
 import { AuthModule } from './auth/auth.module';
+import { ClsModule } from 'nestjs-cls';
+import { KafkaModule } from './kafka/kafka.module';
+import { StatisticsModule } from './statistics/statistics.module';
 
 @Module({
     imports: [
@@ -22,14 +25,25 @@ import { AuthModule } from './auth/auth.module';
                 },
             })
         }),
+        KafkaModule,
+        StatisticsModule,
         AuthModule,
         ReservationModule,
         PaymentModule,
         LoyaltyModule,
+        ClsModule.forRoot({
+            global: true,
+            middleware: {
+                mount: true,
+                setup: (cls, req) => {
+                    cls.set('authorization', req.headers.authorization);
+                },
+            },
+        }),
     ],
     controllers: [AppController],
     providers: [
         AppService,
     ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -5,6 +5,7 @@ import {
     Body,
     Patch,
     Param,
+    Request,
 } from '@nestjs/common';
 import { LoyaltyService } from './loyalty.service';
 import { CreateLoyaltyDto } from './dto/create-loyalty.dto';
@@ -20,12 +21,14 @@ export class LoyaltyController {
     }
 
     @Get(':username')
-    findOne(@Param('username') username: string) {
+    findOne(@Request() req: any) {
+        const username = req.user.username; 
         return this.loyaltyService.findOne(username);
     }
 
     @Patch(':username')
-    update(@Param('username') username: string, @Body() updateLoyaltyDto: UpdateLoyaltyDto) {
+    update(@Request() req: any, @Body() updateLoyaltyDto: UpdateLoyaltyDto) {
+        const username = req.user.username; 
         return this.loyaltyService.update(username, updateLoyaltyDto);
     }
 }

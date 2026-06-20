@@ -1232,3 +1232,12 @@ buildNumber.properties
 .mvn/timing.properties
 # https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
+
+
+docker-compose.yml.txt
+fulltext*
+get-sources.py
+openapi.yml.txt
+pod.yml
+dep.yml
+configurer.py

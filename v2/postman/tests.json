@@ -1,0 +1,718 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-1234-56789abcdef0",
+    "name": "Hotel Booking System - Integration Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Unauthorized Tests",
+      "item": [
+        {
+          "name": "[401] Get hotels without auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Без авторизации - 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/hotels?page=1&size=10",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hotels"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[401] Get user profile (/me) without auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Без авторизации - 401', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/me",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. User Login (Authorization Code Flow)",
+      "item": [
+        {
+          "name": "[302] 1. IDP Authorize (Generate Code)",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Ожидаем редирект (302 Found) от IDP', () => {",
+                  "    pm.expect(pm.response.code).to.eq(302);",
+                  "    ",
+                  "    const location = pm.response.headers.get('Location');",
+                  "    pm.expect(location).to.be.a('string', 'Отсутствует заголовок Location');",
+                  "    ",
+                  "    // Извлекаем code=... из URL редиректа",
+                  "    const match = location.match(/code=([^&]+)/);",
+                  "    pm.expect(match, 'Код авторизации не найден в URL').to.not.be.null;",
+                  "    ",
+                  "    // Сохраняем код для следующего запроса",
+                  "    pm.collectionVariables.set('authCode', match[1]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"pass_alice\",\n  \"client_id\": \"{{clientId}}\",\n  \"redirect_uri\": \"{{redirectUri}}\",\n  \"scope\": \"openid profile email\",\n  \"state\": \"postman_test\"\n}"
+            },
+            "url": {
+              "raw": "{{idpUrl}}/auth/authorize",
+              "host": [
+                "{{idpUrl}}"
+              ],
+              "path": [
+                "auth",
+                "authorize"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[200] 2. Gateway Callback (Exchange Code for Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Токен успешно получен через Gateway', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    ",
+                  "    pm.expect(response.access_token).to.be.a('string');",
+                  "    // Сохраняем итоговый токен для всех последующих запросов API",
+                  "    pm.collectionVariables.set('userToken', response.access_token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/callback?code={{authCode}}",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "callback"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{authCode}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. User Booking Flow",
+      "item": [
+        {
+          "name": "[200] Get hotels list",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Получение списка отелей', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.items).to.be.an('array');",
+                  "    pm.expect(response.items.length).to.be.greaterThan(0);",
+                  "    ",
+                  "    // Сохраняем первый попавшийся отель для бронирования",
+                  "    pm.collectionVariables.set('hotelUid', response.items[0].hotelUid);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/hotels?page=1&size=10",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "hotels"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[200] Get Loyalty info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Получение статуса лояльности', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.status).to.exist;",
+                  "    pm.expect(response.discount).to.exist;",
+                  "    ",
+                  "    pm.collectionVariables.set('initialReservationCount', response.reservationCount || 0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/loyalty",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "loyalty"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[200] Create Reservation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Создание бронирования', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.reservationUid).to.be.not.undefined;",
+                  "    pm.expect(response.status).to.eq('PAID');",
+                  "    pm.expect(response.payment.status).to.eq('PAID');",
+                  "    ",
+                  "    pm.collectionVariables.set('reservationUid', response.reservationUid);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hotelUid\": \"{{hotelUid}}\",\n  \"startDate\": \"2026-10-10\",\n  \"endDate\": \"2026-10-15\"\n}"
+            },
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/reservations",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[200] Get User Profile (/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Проверка профиля после создания брони', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    ",
+                  "    pm.expect(response.reservations).to.be.an('array');",
+                  "    const res = response.reservations.find(r => r.reservationUid === pm.collectionVariables.get('reservationUid'));",
+                  "    pm.expect(res).to.not.be.undefined;",
+                  "    pm.expect(res.status).to.eq('PAID');",
+                  "    ",
+                  "    const prevCount = parseInt(pm.collectionVariables.get('initialReservationCount'));",
+                  "    pm.expect(response.loyalty.reservationCount).to.eq(prevCount + 1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/me",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[204] Cancel Reservation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Отмена бронирования', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([204, 200]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/reservations/{{reservationUid}}",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "{{reservationUid}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[200] Verify Reservation Canceled (/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Проверка профиля после отмены брони', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    ",
+                  "    const res = response.reservations.find(r => r.reservationUid === pm.collectionVariables.get('reservationUid'));",
+                  "    pm.expect(res.status).to.eq('CANCELED');",
+                  "    pm.expect(res.payment.status).to.eq('CANCELED');",
+                  "    ",
+                  "    const prevCount = parseInt(pm.collectionVariables.get('initialReservationCount'));",
+                  "    pm.expect(response.loyalty.reservationCount).to.eq(prevCount);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/me",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Admin Flow",
+      "item": [
+        {
+          "name": "[403] User cannot access Statistics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Обычный юзер не имеет доступа к стате - 403', () => {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/statistics",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "statistics"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[302] 1. IDP Authorize (Generate Code)",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Ожидаем редирект (302 Found) от IDP', () => {",
+                  "    pm.expect(pm.response.code).to.eq(302);",
+                  "    ",
+                  "    const location = pm.response.headers.get('Location');",
+                  "    pm.expect(location).to.be.a('string', 'Отсутствует заголовок Location');",
+                  "    ",
+                  "    const match = location.match(/code=([^&]+)/);",
+                  "    pm.expect(match, 'Код авторизации не найден в URL').to.not.be.null;",
+                  "    ",
+                  "    pm.collectionVariables.set('adminToken', match[1]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin_password\",\n  \"client_id\": \"{{clientId}}\",\n  \"redirect_uri\": \"{{redirectUri}}\",\n  \"scope\": \"openid profile email\",\n  \"state\": \"postman_test\"\n}"
+            },
+            "url": {
+              "raw": "{{idpUrl}}/auth/authorize",
+              "host": [
+                "{{idpUrl}}"
+              ],
+              "path": [
+                "auth",
+                "authorize"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[200] 2. Gateway Callback (Exchange Code for Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Токен успешно получен через Gateway', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    ",
+                  "    pm.expect(response.access_token).to.be.a('string');",
+                  "    // Сохраняем итоговый токен для всех последующих запросов API",
+                  "    pm.collectionVariables.set('adminToken', response.access_token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/callback?code={{adminToken}}",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "callback"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{adminToken}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[200] Get Statistics (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Админ получает статистику', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const response = pm.response.json();",
+                  "    ",
+                  "    pm.expect(response.totalCreated).to.be.a('number');",
+                  "    pm.expect(response.totalCanceled).to.be.a('number');",
+                  "    pm.expect(response.revenue).to.be.a('number');",
+                  "    pm.expect(response.hotelPopularity).to.be.an('array');",
+                  "    pm.expect(response.loyaltyDistribution).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serviceUrl}}/api/v1/statistics",
+              "host": [
+                "{{serviceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "statistics"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "serviceUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "hotelUid",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reservationUid",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "initialReservationCount",
+      "value": "0",
+      "type": "string"
+    }
+  ]
+}

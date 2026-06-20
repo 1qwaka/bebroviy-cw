@@ -1,5 +1,5 @@
 import { HttpService } from "@nestjs/axios";
-import { Body, Controller, Logger, Post, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Logger, Post, Query, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { firstValueFrom } from "rxjs";
@@ -17,6 +17,8 @@ export class AuthController {
 
     private readonly oidcClientId: string;
 
+    private readonly redirectUri: string;
+
     
     constructor(
         private readonly httpService: HttpService,
@@ -25,6 +27,7 @@ export class AuthController {
         this.idpUrl = this.config.getOrThrow<string>('IDP_URL');
         this.oidcClientSecret = this.config.getOrThrow<string>('OIDC_CLIENT_SECRET');
         this.oidcClientId = this.config.getOrThrow<string>('OIDC_CLIENT_ID');
+        this.redirectUri = this.config.getOrThrow<string>('REDIRECT_URI');
     }
 
 
@@ -43,6 +46,31 @@ export class AuthController {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 }
+            }))
+            this.logger.log(res.data)
+            return res.data;
+        } catch (err: unknown) {
+            if (axios.isAxiosError(err)) {
+                this.logger.error(`Axios Error: ${err.code} ${err.message} ${err.response?.status}`)
+                this.logger.error(err.response?.data)
+                this.logger.error(err.request?.data)
+            } else {
+                this.logger.error(`Non Axios Error: ${err}`)
+            }
+            throw new UnauthorizedException('Fail to authorize');
+        }
+    }
+
+    @IsPublic()
+    @Get('callback')
+    async callback(@Query('code') code: string) {
+        try {
+            const res = await firstValueFrom(this.httpService.post<any>(`${this.idpUrl}/token`, {
+                'grant_type': 'authorization_code',
+                'code': code,
+                'client_secret': this.oidcClientSecret,
+                'client_id': this.oidcClientId,
+                'redirect_uri': this.redirectUri,
             }))
             this.logger.log(res.data)
             return res.data;

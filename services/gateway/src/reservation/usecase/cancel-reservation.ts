@@ -5,6 +5,7 @@ import { Payment } from "src/payment/entity/payment.entity";
 import { PaymentService } from "src/payment/payment.service";
 import { Reservation } from "src/reservation/entities/reservation.entity";
 import { ReservationService } from "src/reservation/reservation.service";
+import { KafkaService } from 'src/kafka/kafka.service';
 
 export interface CancelReservationParams {
     username: string;
@@ -27,6 +28,7 @@ export class CancelReservationUsecase {
         private readonly reservationService: ReservationService,
         private readonly paymentService: PaymentService,
         private readonly loyaltyService: LoyaltyService,
+        private readonly kafkaService: KafkaService,
     ) { }
     
 
@@ -43,6 +45,13 @@ export class CancelReservationUsecase {
                                 ?? await this.paymentService.cancel(this.cancelledReservation.paymentUid);
         this.updatedLoyalty = updatedLoyalty
                                 ?? await this.loyaltyService.update(username, { reservationCountChange: -1 })
+
+        this.kafkaService.emitEvent('RESERVATION_CANCELED', {
+            hotelUid: this.cancelledReservation.hotel.hotelUid,
+            price: this.cancelledPayment.price,
+            loyaltyStatus: this.updatedLoyalty.status,
+            username: username,
+        });
     }
 
 }

@@ -15,10 +15,115 @@ services:
     networks:
       bebroviy-net:
 
-  redis:
-    image: redis:alpine
+  # redis:
+  #   image: redis:alpine
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     bebroviy-net:
+
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:latest
+  #   environment:
+  #     - KEYCLOAK_ADMIN=admin
+  #     - KEYCLOAK_ADMIN_PASSWORD=admin
+  #   ports:
+  #     - "8002:8080"
+  #   command: start-dev
+
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    container_name: zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      bebroviy-net:
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.2
+    container_name: kafka
+    restart: always
+    depends_on:
+      - zookeeper
     ports:
-      - "6379:6379"
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      # Внутри docker-compose сети внутренний адрес будет kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      bebroviy-net:
+
+  statistics:
+    build:
+      context: ./services/statistics
+      dockerfile: dockerfile.yml
+    container_name: statistics
+    image: 1qwaka/statistics:v1.4
+    restart: always
+    ports:
+      - "8110:8080"
+    env_file: ['.env']
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: statistics
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      bebroviy-net:
+  ui:
+    build:
+      context: ./services/ui
+      dockerfile: dockerfile.yml
+    image: 1qwaka/ui:v1.4
+    container_name: ui
+    restart: always
+    ports:
+      - "8100:80"
+    env_file: ['.env']
+    environment:
+      IDP_URL: http://localhost:8090
+      CLIENT_ID: ${OIDC_CLIENT_ID}
+      API_URL: http://localhost:8080
+      
+  idp:
+    build:
+      context: ./services/idp
+      dockerfile: dockerfile.yml
+    image: 1qwaka/idp:v1.4
+    container_name: idp
+    restart: always
+    ports:
+      - "8090:8090"
+    env_file: ['.env']
+    environment:
+      NODE_ENV: production
+      PORT: 8090
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_IDP_NAME}
+      JWT_PRIVATE_KEY_BASE64: ${JWT_PRIVATE_KEY_BASE64}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64}
+      IDP_ISSUER: ${IDP_ISSUER}
+    depends_on:
+      - postgres
     networks:
       bebroviy-net:
       
@@ -26,7 +131,7 @@ services:
     build:
       context: ./services/gateway
       dockerfile: dockerfile.yml
-    image: 1qwaka/gateway:v1.0
+    image: 1qwaka/gateway:v1.4
     container_name: gateway
     restart: always
     ports:
@@ -40,8 +145,16 @@ services:
       RESERVATION_URL: http://reservation:8070
       PAYMENT_URL: http://payment:8060
       LOYALTY_URL: http://loyalty:8050
+      IDP_URL: ${IDP_URL}
+      IDP_ISSUER: ${IDP_ISSUER}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      REDIRECT_URI: http://localhost:8100/callback
+      KAFKA_BROKER: kafka:29092
+      STATISTICS_URL: http://statistics:8080
     depends_on:
       - postgres
+      - kafka
     networks:
       bebroviy-net:
 
@@ -50,7 +163,7 @@ services:
       context: ./services/loyalty
       dockerfile: dockerfile.yml
     container_name: loyalty
-    image: 1qwaka/loyalty:v1.0
+    image: 1qwaka/loyalty:v1.4
     restart: always
     ports:
       - "8050:8050"
@@ -63,6 +176,10 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_LOYALTY_NAME}
+      IDP_URL: ${IDP_URL}
+      IDP_ISSUER: ${IDP_ISSUER}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
     depends_on:
       - postgres
     networks:
@@ -73,7 +190,7 @@ services:
       context: ./services/payment
       dockerfile: dockerfile.yml
     container_name: payment
-    image: 1qwaka/payment:v1.0
+    image: 1qwaka/payment:v1.4
     restart: always
     ports:
       - "8060:8060"
@@ -86,6 +203,10 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_PAYMENT_NAME}
+      IDP_URL: ${IDP_URL}
+      IDP_ISSUER: ${IDP_ISSUER}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
     depends_on:
       - postgres
     networks:
@@ -96,7 +217,7 @@ services:
       context: ./services/reservation
       dockerfile: dockerfile.yml
     container_name: reservation
-    image: 1qwaka/reservation:v1.0
+    image: 1qwaka/reservation:v1.4
     restart: always
     ports:
       - "8070:8070"
@@ -109,6 +230,10 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_RESERVATION_NAME}
+      IDP_URL: ${IDP_URL}
+      IDP_ISSUER: ${IDP_ISSUER}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
     depends_on:
       - postgres
     networks:

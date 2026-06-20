@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PaginationHotelDto } from './dto/pagination-hotel.dto';
 import { Hotel } from './entities/hotel.entity';
@@ -32,9 +32,16 @@ export class HotelService {
     }
  
     async findOne(hotelUid: string) {
-        const res = await this.cb.fire(() => firstValueFrom(
-            this.httpService.get<Hotel>(`${this.baseUrl}/hotels/${hotelUid}`)
-        ));
-        return res.data;
+        try {
+            const res = await this.cb.fire(() => firstValueFrom(
+                this.httpService.get<Hotel>(`${this.baseUrl}/hotels/${hotelUid}`)
+            ));
+            return res.data;
+        } catch (err: any) {
+            if (err.code === 'ECONNREFUSED' || err instanceof ServiceUnavailableException || !err.response) {
+                throw new ServiceUnavailableException("Hotel Service unavailable");
+            }
+            throw err;
+        }
     }
 }

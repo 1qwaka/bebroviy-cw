@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Logger, Param, Post, ServiceUnavailableException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpException, InternalServerErrorException, Logger, Param, Post, Request, ServiceUnavailableException } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { PaymentService } from 'src/payment/payment.service';
 import { CreateReservationDto } from 'src/reservation/dto/create-reservation.dto';
@@ -11,6 +11,7 @@ import { Payment } from 'src/payment/entity/payment.entity';
 import { RollbackScheduler } from 'src/util/rollback-scheduler';
 import { type CreateReservationParams, CreatereservationUsecase } from 'src/reservation/usecase/create-reservation';
 import { CancelReservationUsecase } from 'src/reservation/usecase/cancel-reservation';
+import { KafkaService } from 'src/kafka/kafka.service';
 
 @Controller('reservations')
 export class ReservationController {
@@ -25,10 +26,12 @@ export class ReservationController {
         private readonly retryQueue: Queue,
         private readonly createReservation: CreatereservationUsecase,
         private readonly cancelReservation: CancelReservationUsecase,
+        private readonly kafkaService: KafkaService,
     ) { }
 
     @Get()
-    async findAll(@Headers('X-User-Name') username: string) {
+    async findAll(@Request() req: any) {
+        const username = req.user.username;
         const reservations = await this.reservationService.findAll(username)
         const payments = await callAndFallback(
             () => this.paymentService.findAll({
@@ -49,7 +52,8 @@ export class ReservationController {
     }
 
     @Get(':uid')
-    async findOne(@Headers('X-User-Name') username: string, @Param('uid') reservationUid: string) {
+    async findOne(@Request() req: any, @Param('uid') reservationUid: string) {
+        const username = req.user.username;
         const reservation = await this.reservationService.findOne(username, reservationUid)
         const payment = await callAndFallback(
             () => this.paymentService.findOne(reservation.paymentUid),
@@ -70,7 +74,8 @@ export class ReservationController {
 
     @Delete(':uid')
     @HttpCode(204)
-    async delete(@Headers('X-User-Name') username: string, @Param('uid') reservationUid: string) {
+    async delete(@Request() req: any, @Param('uid') reservationUid: string) {
+        const username = req.user.username;
         this.logger.log('Recieve Delete Reservation Request')
         // try {
             await this.cancelReservation.execute({ username, reservationUid });
@@ -96,7 +101,8 @@ export class ReservationController {
     
     @Post()
     @HttpCode(200)
-    async create(@Headers('X-User-Name') username: string, @Body() dto: CreateReservationDto) {
+    async create(@Request() req: any, @Body() dto: CreateReservationDto) {
+        const username = req.user.username as string;
         this.logger.log('Recieve Create Reservation Request')
         const rollbacker = new RollbackScheduler<Promise<unknown>>();
 
@@ -127,16 +133,27 @@ export class ReservationController {
             )
             
             this.logger.log('Succuessfully Created Reservation')
+
+            this.kafkaService.emitEvent('RESERVATION_CREATED', {
+                hotelUid: hotel.hotelUid,
+                price,
+                loyaltyStatus: loyalty.status,
+                username: username,
+            });
+            
             return {
                 ...reservation,
                 payment,
                 hotelUid: reservation?.hotel.hotelUid,
                 discount: loyalty?.discount,
             }
-        } catch {
-            this.logger.log('Error Create Reservation')
+        } catch (err: unknown) {
+            this.logger.error(`Error Create Reservation: ${(err as any).message}`);
             await Promise.all(rollbacker.rollbackSafe());
-            throw new ServiceUnavailableException("Loyalty Service unavailable");
+            if (err instanceof HttpException) {
+                throw err;
+            }
+            throw new InternalServerErrorException("Internal error");
         }
     }
 

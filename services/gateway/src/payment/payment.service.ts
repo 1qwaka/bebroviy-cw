@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { CreatePaymentDto } from 'src/payment/dto/create-payment.dto';
@@ -24,11 +24,18 @@ export class PaymentService {
     }
 
     async create(data: CreatePaymentDto) {
-        const res = await firstValueFrom(this.httpService.post<Payment>(
-            `${this.baseUrl}/payments`, 
-            data,
-        ));
-        return res.data;
+        try {
+            const res = await firstValueFrom(this.httpService.post<Payment>(
+                `${this.baseUrl}/payments`, 
+                data,
+            ));
+            return res.data;
+        } catch (err: any) {
+            if (err.code === 'ECONNREFUSED' || err instanceof ServiceUnavailableException || !err.response) {
+                throw new ServiceUnavailableException("Payment Service unavailable");
+            }
+            throw err;
+        }
     }
 
     async findAll(data: FindPaymentsBatchDto) {

@@ -1,0 +1,17 @@
+name: statistics
+image: 1qwaka/statistics:v1.4
+containerPort: 8080
+clusterPort: 80
+
+
+env:
+  PORT: '8080'
+  DB_NAME: statistics
+  DB_PORT: '5432'
+  DB_HOST: postgres-postgresql
+  IDP_URL: http://idp-svc:80/auth
+  IDP_ISSUER: http://localhost:80
+  KAFKA_BROKER: kafka-svc:29092
+
+secretRefs: 
+- 'oidc-data'

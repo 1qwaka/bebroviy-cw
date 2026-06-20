@@ -26,6 +26,6 @@ import { CancelReservationUsecase } from 'src/reservation/usecase/cancel-reserva
         CancelReservationUsecase,
         ReservationProcessor
     ],
-    exports: [ReservationService]
+    exports: [ReservationService, HotelService]
 })
 export class ReservationModule {}

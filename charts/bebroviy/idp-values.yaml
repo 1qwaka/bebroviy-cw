@@ -1,0 +1,16 @@
+name: idp
+image: 1qwaka/idp:v1.4
+containerPort: 8080
+clusterPort: 80
+
+
+env:
+  PORT: '8080'
+  DB_NAME: idp
+  DB_PORT: '5432'
+  DB_HOST: postgres-postgresql
+  IDP_ISSUER: http://localhost:80
+  
+
+secretRefs: 
+- 'idp-rsa-keys'

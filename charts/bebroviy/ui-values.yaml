@@ -1,0 +1,11 @@
+name: ui
+image: 1qwaka/ui:v1.4
+containerPort: 80
+clusterPort: 80
+
+env:
+  IDP_URL: http://my-app.local
+  API_URL: http://my-app.local
+  CLIENT_ID: gateway-client
+
+secretRefs: []

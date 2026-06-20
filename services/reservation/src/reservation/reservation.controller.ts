@@ -8,6 +8,7 @@ import {
     Delete,
     Query,
     ParseIntPipe,
+    Request,
 } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
@@ -23,22 +24,26 @@ export class ReservationController {
     }
 
     @Get()
-    findAll(@Query('username') username: string) {
+    findAll(@Request() req: any) {
+        const username = req.user.username; 
         return this.reservationService.findAll(username);
     }
 
     @Get(':id')
-    findOne(@Param('id') uid: string, @Query('username') username: string) {
+    findOne(@Param('id') uid: string, @Request() req: any) {
+        const username = req.user.username; 
         return this.reservationService.findOne(uid, username);
     }
 
     @Delete(':id/cancel')
-    cancel(@Param('id') uid: string, @Query('username') username: string) {
+    cancel(@Param('id') uid: string, @Request() req: any) {
+        const username = req.user.username; 
         return this.reservationService.cancel(uid, username);
     }
 
     @Delete(':id/cancel-cancelling')
-    cancelCancelling(@Param('id') uid: string, @Query('username') username: string) {
+    cancelCancelling(@Param('id') uid: string, @Request() req: any) {
+        const username = req.user.username; 
         return this.reservationService.cancelCancelling(uid, username);
     }
 

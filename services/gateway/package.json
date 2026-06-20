@@ -34,6 +34,8 @@
     "class-validator": "^0.14.3",
     "ioredis": "^5.8.2",
     "jwks-rsa": "^4.0.1",
+    "kafkajs": "^2.2.4",
+    "nestjs-cls": "^6.2.1",
     "opossum": "^9.0.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

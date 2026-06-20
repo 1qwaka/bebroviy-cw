@@ -16,7 +16,7 @@ export class LoyaltyService {
         try {
             const loyalty = this.repository.create({
                 id: 1,
-                username: "Test Max",
+                username: "test-max",
                 reservationCount: 25,
                 status: LoyaltyStatus.GOLD,
                 discount: 10,
@@ -35,8 +35,18 @@ export class LoyaltyService {
         return this.repository.save(loyalty);
     }
 
-    findOne(username: string) {
-        return this.repository.findOneBy({ username });
+    async findOne(username: string) {
+        const loyalty = await this.repository.findOneBy({ username });
+        if (!loyalty) {
+            const loyalty = this.repository.create({
+                username: username,
+                discount: LoyaltyStatusDiscount[LoyaltyStatus.BRONZE],
+                reservationCount: 0,
+                status: LoyaltyStatus.BRONZE,
+            })
+            return this.repository.save(loyalty);
+        }
+        return loyalty;
     }
 
     async update(username: string, updateLoyaltyDto: UpdateLoyaltyDto) {

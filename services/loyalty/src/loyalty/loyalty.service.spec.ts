@@ -51,7 +51,7 @@ describe('LoyaltyService', () => {
 
       expect(repository.create).toHaveBeenCalledWith({
         id: 1,
-        username: "Test Max",
+        username: "test-max",
         reservationCount: 25,
         status: LoyaltyStatus.GOLD,
         discount: 10,

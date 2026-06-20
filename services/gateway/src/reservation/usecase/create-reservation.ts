@@ -8,6 +8,7 @@ import { Hotel } from "src/reservation/entities/hotel.entity";
 import { Reservation } from "src/reservation/entities/reservation.entity";
 import { HotelService } from "src/reservation/hotel.service";
 import { ReservationService } from "src/reservation/reservation.service";
+import { KafkaService } from 'src/kafka/kafka.service';
 
 export interface CreateReservationParams {
     username: string,
@@ -37,6 +38,7 @@ export class CreatereservationUsecase {
         private readonly hotelService: HotelService,
         private readonly paymentService: PaymentService,
         private readonly loyaltyService: LoyaltyService,
+        private readonly kafkaService: KafkaService,
     ) { }
     
     async execute({
@@ -82,6 +84,13 @@ export class CreatereservationUsecase {
         if (!this.newLoyalty) {
             return false;
         }
+
+        this.kafkaService.emitEvent('RESERVATION_CREATED', {
+            hotelUid: this.hotel.hotelUid,
+            price,
+            loyaltyStatus: this.loyalty.status,
+            username: username,
+        });
 
         return true
     }

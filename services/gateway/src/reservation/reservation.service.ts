@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { Reservation } from './entities/reservation.entity';
@@ -7,6 +7,7 @@ import { PaginationModel } from 'src/util/pagination.model';
 import { CreateReservationDto } from 'src/reservation/dto/create-reservation.dto';
 import { CreateReservationInternalDto } from 'src/reservation/dto/create-reservation-internal.dto';
 import { CircuitBreaker } from 'src/util/circuit-breaker';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class ReservationService {
@@ -20,19 +21,23 @@ export class ReservationService {
         private readonly config: ConfigService,
     ) {
         this.baseUrl = config.getOrThrow<string>('RESERVATION_URL');
-        this.httpService.axiosRef.interceptors.request.use(config => {
-
-            return config;
-        })
     }
 
     async create(data: CreateReservationInternalDto) {
-        const reservation = await firstValueFrom(this.httpService.post<Reservation>(
-            `${this.baseUrl}/reservations`, 
-            data
-        ));
+        try {
+            const reservation = await firstValueFrom(this.httpService.post<Reservation>(
+                `${this.baseUrl}/reservations`, 
+                data
+            ));
 
-        return reservation.data;
+            return reservation.data;
+        } catch (err: any) {
+            if (err.code === 'ECONNREFUSED' || err instanceof ServiceUnavailableException || !err.response) {
+                throw new ServiceUnavailableException("Payment Service unavailable");
+            }
+            throw err;
+        }
+      
     }
 
     async findAll(username: string) {

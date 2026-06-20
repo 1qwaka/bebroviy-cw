@@ -1,0 +1,16 @@
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=postgres
+
+DB_RESERVATION_NAME=reservations
+DB_LOYALTY_NAME=loyalties
+DB_PAYMENT_NAME=payments
+DB_IDP_NAME=idp
+
+DB_USER=program
+DB_PASS=test
+
+IDP_URL=http://localhost:8002/realms/goida/protocol/openid-connect
+IDP_ISSUER=http://localhost:8002/realms/goida
+OIDC_CLIENT_SECRET=IlFICwerKuib0oEZoBz7til1pVdqU6r5
+OIDC_CLIENT_ID=kompot

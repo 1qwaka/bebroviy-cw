@@ -36,6 +36,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             username: payload.preferred_username, // В Keycloak логин лежит тут
             email: payload.email,
             name: payload.name,
+            role: payload.role,
             payload,
         };
     }

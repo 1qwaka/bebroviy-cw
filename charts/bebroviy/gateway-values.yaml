@@ -1,10 +1,7 @@
 name: gateway
-image: 1qwaka/gateway:v1.0
+image: 1qwaka/gateway:v1.4
 containerPort: 8080
 clusterPort: 80
-
-ingress:
-  enabled: true
 
 env:
   PORT: '8080'
@@ -12,4 +9,14 @@ env:
   PAYMENT_URL: http://payment-svc:80
   LOYALTY_URL: http://loyalty-svc:80
   REDIS_HOST: ''
-  REDIS_PORT: '4251'
+  # сейчас не используется, чисто чтобы не падало приложение
+  REDIS_PORT: '1111'
+  IDP_URL: http://idp-svc:80/auth
+  IDP_ISSUER: http://localhost:80
+  REDIRECT_URI: http://my-app.local/callback
+  KAFKA_BROKER: kafka-svc:29092
+  STATISTICS_URL: http://statistics-svc:80
+
+
+secretRefs: 
+- 'oidc-data'

@@ -1,12 +1,15 @@
 name: payment
-image: 1qwaka/payment:v1.0
+image: 1qwaka/payment:v1.4
 containerPort: 8080
 clusterPort: 80
 
-ingress:
-  enabled: false
 env:
   PORT: '8080'
   DB_NAME: payments
   DB_PORT: '5432'
   DB_HOST: postgres-postgresql
+  IDP_URL: http://idp-svc:80/auth
+  IDP_ISSUER: http://localhost:80
+
+secretRefs: 
+- 'oidc-data'

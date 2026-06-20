@@ -1,0 +1,1 @@
+window.goida = 1

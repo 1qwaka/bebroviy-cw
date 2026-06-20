@@ -31,5 +31,11 @@ spec:
             {{- end }}
           envFrom:
             - secretRef:
+            # бд
                 name: my-secret
-    
+            {{- if .Values.secretRefs }}
+            {{- range $val := .Values.secretRefs }}
+            - secretRef:
+                name: {{ $val | quote }}
+            {{- end }}
+            {{- end }}

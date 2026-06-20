@@ -1,0 +1,9 @@
+RESERVATION_URL=http://localhost:3010
+PAYMENT_URL=http://localhost:3011
+LOYALTY_URL=http://localhost:3012
+REDIS_HOST=localhost
+REDIS_PORT=4251
+IDP_URL=http://localhost:8002/realms/goida/protocol/openid-connect
+IDP_ISSUER=http://localhost:8002/realms/goida
+OIDC_CLIENT_SECRET=IlFICwerKuib0oEZoBz7til1pVdqU6r5
+OIDC_CLIENT_ID=kompot
