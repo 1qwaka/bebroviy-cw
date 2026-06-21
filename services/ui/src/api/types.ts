@@ -81,3 +81,10 @@ export interface StatisticsResponse {
     hotelPopularity: StatHotelItem[];
     loyaltyDistribution: StatLoyaltyItem[];
 }
+
+export interface UserAction {
+    id: number;
+    username: string;
+    actionName: string;
+    createdAt: string;
+}

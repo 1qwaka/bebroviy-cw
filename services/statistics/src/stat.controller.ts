@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { StatService } from './stat.service';
 
@@ -6,15 +6,23 @@ import { StatService } from './stat.service';
 export class StatController {
     constructor(private readonly statService: StatService) {}
 
-    // Эндпоинт для REST API (вызывается из Gateway)
     @Get()
     getStats() {
         return this.statService.getDashboardStats();
     }
 
-    // Слушатель Kafka
+    @Get('actions')
+    getActions(@Query('page') page: number = 1, @Query('size') size: number = 10) {
+        return this.statService.getActions(page, size);
+    }
+
     @EventPattern('booking.events')
     handleBookingEvent(@Payload() message: any) {
         this.statService.recordEvent(message);
+    }
+
+    @EventPattern('user.actions')
+    handleUserAction(@Payload() message: any) {
+        this.statService.recordAction(message);
     }
 }

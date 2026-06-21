@@ -9,9 +9,10 @@ import { type Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { Payment } from 'src/payment/entity/payment.entity';
 import { RollbackScheduler } from 'src/util/rollback-scheduler';
-import { type CreateReservationParams, CreatereservationUsecase } from 'src/reservation/usecase/create-reservation';
+import { CreatereservationUsecase } from 'src/reservation/usecase/create-reservation';
 import { CancelReservationUsecase } from 'src/reservation/usecase/cancel-reservation';
 import { KafkaService } from 'src/kafka/kafka.service';
+import { ActionName } from '../util/action-name.decorator';
 
 @Controller('reservations')
 export class ReservationController {
@@ -30,6 +31,7 @@ export class ReservationController {
     ) { }
 
     @Get()
+    @ActionName('просмотр своих бронирований')
     async findAll(@Request() req: any) {
         const username = req.user.username;
         const reservations = await this.reservationService.findAll(username)
@@ -52,6 +54,7 @@ export class ReservationController {
     }
 
     @Get(':uid')
+    @ActionName('детальный просмотр бронирования')
     async findOne(@Request() req: any, @Param('uid') reservationUid: string) {
         const username = req.user.username;
         const reservation = await this.reservationService.findOne(username, reservationUid)
@@ -69,14 +72,13 @@ export class ReservationController {
             startDate: reservation.startDate.slice(0, reservation.startDate.indexOf('T')),
             endDate: reservation.endDate.slice(0, reservation.endDate.indexOf('T'))
         }
-
     }
 
     @Delete(':uid')
     @HttpCode(204)
+    @ActionName('отмена бронирования')
     async delete(@Request() req: any, @Param('uid') reservationUid: string) {
         const username = req.user.username;
-        this.logger.log('Recieve Delete Reservation Request')
         // try {
             await this.cancelReservation.execute({ username, reservationUid });
             this.logger.log('Successfully Deleted Reservation')
@@ -101,9 +103,9 @@ export class ReservationController {
     
     @Post()
     @HttpCode(200)
+    @ActionName('создание нового бронирования')
     async create(@Request() req: any, @Body() dto: CreateReservationDto) {
         const username = req.user.username as string;
-        this.logger.log('Recieve Create Reservation Request')
         const rollbacker = new RollbackScheduler<Promise<unknown>>();
 
         try {
@@ -132,8 +134,6 @@ export class ReservationController {
                 () => this.loyaltyService.update(username, { reservationCountChange: -1 }),
             )
             
-            this.logger.log('Succuessfully Created Reservation')
-
             this.kafkaService.emitEvent('RESERVATION_CREATED', {
                 hotelUid: hotel.hotelUid,
                 price,
@@ -148,14 +148,9 @@ export class ReservationController {
                 discount: loyalty?.discount,
             }
         } catch (err: unknown) {
-            this.logger.error(`Error Create Reservation: ${(err as any).message}`);
             await Promise.all(rollbacker.rollbackSafe());
-            if (err instanceof HttpException) {
-                throw err;
-            }
+            if (err instanceof HttpException) throw err;
             throw new InternalServerErrorException("Internal error");
         }
     }
-
-
 }

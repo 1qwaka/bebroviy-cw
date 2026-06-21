@@ -3,6 +3,7 @@ import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeor
 export enum StatEventType {
     RESERVATION_CREATED = 'RESERVATION_CREATED',
     RESERVATION_CANCELED = 'RESERVATION_CANCELED',
+    USER_ACTION = 'USER_ACTION',
 }
 
 @Entity()
@@ -13,14 +14,20 @@ export class StatRecord {
     @Column({ type: 'enum', enum: StatEventType })
     eventType: StatEventType;
 
-    @Column()
+    @Column({ nullable: true })
     hotelUid: string;
 
-    @Column({ type: 'int', default: 0 })
+    @Column({ type: 'int', default: 0, nullable: true })
     price: number;
 
-    @Column()
+    @Column({ nullable: true })
     loyaltyStatus: string;
+
+    @Column({ nullable: true })
+    actionName: string;
+
+    @Column({ nullable: true })
+    username: string;
 
     @CreateDateColumn()
     createdAt: Date;

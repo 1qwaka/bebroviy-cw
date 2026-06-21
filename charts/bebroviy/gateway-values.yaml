@@ -1,5 +1,5 @@
 name: gateway
-image: 1qwaka/gateway:v1.6
+image: 1qwaka/gateway:v1.7
 containerPort: 8080
 clusterPort: 80
 
@@ -8,9 +8,8 @@ env:
   RESERVATION_URL: http://reservation-svc:80
   PAYMENT_URL: http://payment-svc:80
   LOYALTY_URL: http://loyalty-svc:80
-  REDIS_HOST: ''
-  # сейчас не используется, чисто чтобы не падало приложение
-  REDIS_PORT: '1111'
+  REDIS_HOST: redis-svc
+  REDIS_PORT: '6379'
   IDP_URL: http://idp-svc:80/auth
   IDP_ISSUER: http://localhost:80
   REDIRECT_URI: http://my-app.local/callback

@@ -1,6 +1,7 @@
 import { Controller, Get, Headers, HttpException, Logger, Request, ServiceUnavailableException } from '@nestjs/common';
 import { LoyaltyService } from './loyalty.service';
 import axios from 'axios';
+import { ActionName } from '../util/action-name.decorator';
 
 @Controller('loyalty')
 export class LoyaltyController {
@@ -9,8 +10,8 @@ export class LoyaltyController {
 
     constructor(private readonly loyaltyService: LoyaltyService) { }
 
-
     @Get()
+    @ActionName('запрос статуса лояльности')
     async findOne(@Request() req: any) {
         const username = req.user.username; 
         try {
