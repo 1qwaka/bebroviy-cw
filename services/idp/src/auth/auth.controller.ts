@@ -20,10 +20,9 @@ export class AuthController {
         private codeStorage: CodeStorageService,
         private jwtService: JwtService,
         private configService: ConfigService,
-        private cryptoService: CryptoService // Для JWKS
+        private cryptoService: CryptoService,
     ) { }
 
-    // 1. Метод отдачи JWKS (используется микросервисами для валидации токенов)
     @Get('certs')
     getJwks() {
         return this.cryptoService.getJwks();
@@ -50,7 +49,7 @@ export class AuthController {
 
         this.logger.log('Return form to client with params: ' 
                 + JSON.stringify({ client_id, redirect_uri, scope, state }))
-        // Если нет, рендерим форму. Передаем параметры OIDC, чтобы форма отправила их POST-ом
+
         return res.render('login', { client_id, redirect_uri, scope, state });
     }
 
@@ -64,9 +63,7 @@ export class AuthController {
             return res.render('login', { error: 'Invalid credentials', client_id, redirect_uri, scope, state });
         }
 
-        // Ставим сессионную куку (чтобы при следующем заходе не вводить пароль)
         res.cookie('idp_session', user.id, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 });
-
         
         return this.generateCodeAndRedirect(user.id, client_id, redirect_uri, scope, state, res);
     }
@@ -96,13 +93,11 @@ export class AuthController {
             throw new BadRequestException('Unsupported grant_type');
         }
 
-        // Валидация клиента
         const client = await this.clientsService.validateClientCredentials(client_id, client_secret);
         if (!client) {
             throw new UnauthorizedException('Invalid client credentials');
         }
 
-        // Валидация кода
         const codeData = await this.codeStorage.getCode(code);
         if (!codeData || codeData.clientId !== client_id || codeData.redirectUri !== redirect_uri) {
             let additionalInfo = '';
@@ -123,13 +118,12 @@ export class AuthController {
 
         const issuer = this.configService.getOrThrow<string>('IDP_ISSUER');
 
-        // Генерация Access Token (Содержит нужные поля для твоей существующей JwtStrategy)
         const accessTokenPayload = {
             sub: user.id,
             preferred_username: user.username,
             email: user.email,
             name: user.name || user.username,
-            role: user.role, // Добавляем роль для ролевой модели в микросервисах
+            role: user.role,
             iss: issuer,
             aud: client_id,
             scopes: codeData.scopes,
@@ -137,10 +131,9 @@ export class AuthController {
 
         const accessToken = this.jwtService.sign(accessTokenPayload, { expiresIn: '15m' });
 
-        // Генерация ID Token (Стандарт OpenID Connect)
         const idTokenPayload = {
             ...accessTokenPayload,
-            nonce: body.nonce, // Если был передан
+            nonce: body.nonce,
         };
         const idToken = this.jwtService.sign(idTokenPayload, { expiresIn: '1h' });
 

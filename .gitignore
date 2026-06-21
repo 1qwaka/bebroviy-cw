@@ -1241,3 +1241,4 @@ openapi.yml.txt
 pod.yml
 dep.yml
 configurer.py
+get-fulltext.py

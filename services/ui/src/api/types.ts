@@ -33,7 +33,7 @@ export interface ReservationResponse {
     startDate: string;
     endDate: string;
     status: 'PAID' | 'RESERVED' | 'CANCELED';
-    payment: PaymentInfo;
+    payment?: PaymentInfo;
 }
 
 export interface LoyaltyInfoResponse {

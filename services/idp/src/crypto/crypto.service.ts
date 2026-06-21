@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 export class CryptoService {
     private readonly privateKey: string;
     private readonly publicKey: string;
-    private readonly keyId = 'key-1'; // ID ключа для ротации
+    private readonly keyId = 'key-1';
 
     constructor(private configService: ConfigService) {
         const privateB64 = this.configService.getOrThrow<string>('JWT_PRIVATE_KEY_BASE64');
@@ -28,7 +28,6 @@ export class CryptoService {
         return this.publicKey;
     }
 
-    // Генерация JWKS из публичного ключа RSA (встроенными средствами Node.js)
     getJwks() {
         const key = crypto.createPublicKey(this.publicKey);
         const jwk = key.export({ format: 'jwk' });

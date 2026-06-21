@@ -9,6 +9,8 @@ import { callAndFallback } from 'src/util/call-and-fallback';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { IsPublic } from 'src/auth/decorators/is-public.decorator';
+import { Reservation } from 'src/reservation/entities/reservation.entity';
+import { ActionName } from './util/action-name.decorator';
 
 @Controller()
 export class AppController {
@@ -20,37 +22,34 @@ export class AppController {
         private readonly loyaltyService: LoyaltyService,
         private readonly paymentService: PaymentService,
         private readonly config: ConfigService,
-    ) { 
-    }
-
+    ) { }
 
     @IsPublic()
     @Version(VERSION_NEUTRAL)
     @Get('manage/health')
     @HttpCode(200)
-    health() {
-
-    }
+    health() {}
 
     @Get('me')
+    @ActionName('получение профиля пользователя')
     async getMe(@Request() req: any) {
-
-        this.logger.log(req.user)
-
         const username = req.user.username; 
-        const reservations = await this.reservationService.findAll(username)
+        const reservations = await callAndFallback(
+            () => this.reservationService.findAll(username),
+            () => [] as Reservation[]
+        );
         
         const loyalty = await callAndFallback(
             () => this.loyaltyService.findOne(username),
             () => ({ })
         );
 
-        const payments = await callAndFallback(
+        const payments = reservations?.length > 0 ? await callAndFallback(
             () => this.paymentService.findAll({
                 uids: reservations.map(res => res.paymentUid),
             }),
             () => []
-        );
+        ) : [];
         
         return {
             reservations: reservations.map(res => ({
@@ -66,5 +65,4 @@ export class AppController {
             loyalty,
         }
     }
-
 }

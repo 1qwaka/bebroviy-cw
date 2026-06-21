@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HttpModule } from '@nestjs/axios';
@@ -11,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { ClsModule } from 'nestjs-cls';
 import { KafkaModule } from './kafka/kafka.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { AuditInterceptor } from './interceptors/audit.interceptor';
 
 @Module({
     imports: [
@@ -44,6 +46,10 @@ import { StatisticsModule } from './statistics/statistics.module';
     controllers: [AppController],
     providers: [
         AppService,
+        {
+            provide: APP_INTERCEPTOR,
+            useClass: AuditInterceptor,
+        }
     ],
 })
 export class AppModule { }

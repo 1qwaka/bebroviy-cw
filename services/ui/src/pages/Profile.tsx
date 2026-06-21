@@ -75,9 +75,10 @@ export const Profile = () => {
                                                 {res.status}
                                             </span>
                                         </td>
-                                        <td className="py-3 px-2">
-                                            {res.payment.price} ₽ <span className="text-zinc-400">({res.payment.status})</span>
-                                        </td>
+                                        {res.payment && <td className="py-3 px-2">
+                                                {res.payment.price} ₽ <span className="text-zinc-400">({res.payment.status})</span>
+                                            </td>
+                                        }
                                         <td className="py-3 px-2 text-right">
                                             {res.status !== 'CANCELED' && (
                                                 <button

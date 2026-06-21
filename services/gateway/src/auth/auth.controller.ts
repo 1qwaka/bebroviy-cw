@@ -5,21 +5,16 @@ import axios from "axios";
 import { firstValueFrom } from "rxjs";
 import { IsPublic } from "src/auth/decorators/is-public.decorator";
 import { AuthDto } from "src/auth/dto/auth.dto";
+import { ActionName } from "../util/action-name.decorator";
 
 @Controller()
 export class AuthController {
-
     private readonly logger = new Logger(AuthController.name)
-
     private readonly idpUrl: string;
-
     private readonly oidcClientSecret: string;
-
     private readonly oidcClientId: string;
-
     private readonly redirectUri: string;
 
-    
     constructor(
         private readonly httpService: HttpService,
         private readonly config: ConfigService,
@@ -30,9 +25,9 @@ export class AuthController {
         this.redirectUri = this.config.getOrThrow<string>('REDIRECT_URI');
     }
 
-
     @IsPublic()
     @Post('authorize')
+    @ActionName('авторизация по паролю')
     async authorize(@Body() authDto: AuthDto) {
         try {
             const res = await firstValueFrom(this.httpService.post<any>(`${this.idpUrl}/token`, {
@@ -41,13 +36,7 @@ export class AuthController {
                 'password': authDto.password,
                 'client_secret': this.oidcClientSecret,
                 'client_id': this.oidcClientId,
-            }, 
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                }
-            }))
-            this.logger.log(res.data)
+            }, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }))
             return res.data;
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
@@ -63,6 +52,7 @@ export class AuthController {
 
     @IsPublic()
     @Get('callback')
+    @ActionName('вход через callback (OIDC)')
     async callback(@Query('code') code: string) {
         try {
             const res = await firstValueFrom(this.httpService.post<any>(`${this.idpUrl}/token`, {
@@ -72,7 +62,6 @@ export class AuthController {
                 'client_id': this.oidcClientId,
                 'redirect_uri': this.redirectUri,
             }))
-            this.logger.log(res.data)
             return res.data;
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
@@ -85,6 +74,4 @@ export class AuthController {
             throw new UnauthorizedException('Fail to authorize');
         }
     }
-
-
 }

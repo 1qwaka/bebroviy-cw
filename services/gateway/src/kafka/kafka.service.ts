@@ -16,7 +16,7 @@ export class KafkaService implements OnModuleInit {
             brokers: [broker],
               retry: {
                 initialRetryTime: 3000,
-                retries: 5, // Не пытаться бесконечно при старте
+                retries: 5, 
             }
         });
         this.producer = this.kafka.producer();
@@ -36,28 +36,33 @@ export class KafkaService implements OnModuleInit {
 
     async emitEvent(eventType: string, payload: any) {
        if (!this.isConnected) {
-            // Если Kafka лежит, молча игнорируем отправку, 
-            // но пытаемся восстановить соединение в фоне для будущих запросов
             this.connect().catch(() => {});
             return;
         }
-
         const message = { eventType, ...payload };
-        
-        this.logger.log('trying send: ' + JSON.stringify(message))
-
         try {
             await this.producer.send({
                 topic: 'booking.events',
                 messages: [{ value: JSON.stringify(message) }],
-            }).catch(err => {
-                this.logger.warn(`Failed to send event to Kafka: ${err.message}`);
-                this.isConnected = false;
             });
-            this.logger.log('sended successfully: ' + JSON.stringify(message))
         } catch (err: unknown) {
-            this.logger.log('error sending: ' + JSON.stringify(message) + ' ' + String(err))
-            
+            this.logger.log('error sending: ' + String(err));
+        }
+    }
+
+    // Новый метод для логов действий пользователей
+    async emitUserAction(payload: any) {
+        if (!this.isConnected) {
+            this.connect().catch(() => {});
+            return;
+        }
+        try {
+            await this.producer.send({
+                topic: 'user.actions',
+                messages: [{ value: JSON.stringify(payload) }],
+            });
+        } catch (err: unknown) {
+            this.logger.error(`Failed to send user action: ${err}`);
         }
     }
 }

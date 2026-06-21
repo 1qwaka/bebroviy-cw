@@ -8,6 +8,7 @@ import { UpdateLoyaltyDto } from 'src/loyalty/dto/update-loyalty.dto';
 import { Loyalty } from 'src/loyalty/entities/loyalty.entity';
 import { CircuitBreaker } from 'src/util/circuit-breaker';
 import { CircuitBreakerProvider } from 'src/util/curcuit-breaker-provider';
+import { defaultExceptionWrapper } from 'src/util/default-exception-wrapper';
 
 @Injectable()
 export class LoyaltyService {
@@ -27,11 +28,13 @@ export class LoyaltyService {
     }
 
     async create(data: CreateLoyaltyDto) {
-        const res = await firstValueFrom(this.httpService.post<Loyalty>(
-            `${this.baseUrl}/loyalties/`,
-            data,
-        ))
-        return res.data;
+        return defaultExceptionWrapper(async () => {
+            const res = await firstValueFrom(this.httpService.post<Loyalty>(
+                `${this.baseUrl}/loyalties/`,
+                data,
+            ))
+            return res.data;
+        }, { message: 'Loyalty Service unavailable' })
     }
 
     async findOne(username: string) {
@@ -42,7 +45,7 @@ export class LoyaltyService {
             return res.data;
         } catch (err: any) {
             if (err.code === 'ECONNREFUSED' || err instanceof ServiceUnavailableException || !err.response) {
-                throw new ServiceUnavailableException("Hotel Service unavailable");
+                throw new ServiceUnavailableException("Loyalty Service unavailable");
             }
             throw err;
         }
@@ -57,7 +60,7 @@ export class LoyaltyService {
             return res.data;
         } catch (err: any) {
             if (err.code === 'ECONNREFUSED' || err instanceof ServiceUnavailableException || !err.response) {
-                throw new ServiceUnavailableException("Payment Service unavailable");
+                throw new ServiceUnavailableException("Loyalty Service unavailable");
             }
             throw err;
         }

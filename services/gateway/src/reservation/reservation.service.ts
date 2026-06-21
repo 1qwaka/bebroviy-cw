@@ -8,6 +8,7 @@ import { CreateReservationDto } from 'src/reservation/dto/create-reservation.dto
 import { CreateReservationInternalDto } from 'src/reservation/dto/create-reservation-internal.dto';
 import { CircuitBreaker } from 'src/util/circuit-breaker';
 import { ClsService } from 'nestjs-cls';
+import { defaultExceptionWrapper } from 'src/util/default-exception-wrapper';
 
 @Injectable()
 export class ReservationService {
@@ -26,51 +27,61 @@ export class ReservationService {
     async create(data: CreateReservationInternalDto) {
         try {
             const reservation = await firstValueFrom(this.httpService.post<Reservation>(
-                `${this.baseUrl}/reservations`, 
+                `${this.baseUrl}/reservations`,
                 data
             ));
 
             return reservation.data;
         } catch (err: any) {
             if (err.code === 'ECONNREFUSED' || err instanceof ServiceUnavailableException || !err.response) {
-                throw new ServiceUnavailableException("Payment Service unavailable");
+                throw new ServiceUnavailableException("Reservation Service unavailable");
             }
             throw err;
         }
-      
+
     }
 
     async findAll(username: string) {
-        const reservations = await this.cb.fire(() => firstValueFrom(this.httpService.get<Reservation[]>(
-            `${this.baseUrl}/reservations`, 
-            { params: { username } }
-        )));
+        return defaultExceptionWrapper(async () => {
+            const reservations = await this.cb.fire(() => firstValueFrom(this.httpService.get<Reservation[]>(
+                `${this.baseUrl}/reservations`,
+                { params: { username } }
+            )));
 
-        return reservations.data;
+            return reservations.data;
+        }, { message: 'Reservation Service unavailable' });
+
     }
 
     async findOne(username: string, reservationUid: string) {
-        const reservation = await this.cb.fire(() => firstValueFrom(this.httpService.get<Reservation>(
-            `${this.baseUrl}/reservations/${reservationUid}`, 
-            { params: { username } },
-        )));
+        return defaultExceptionWrapper(async () => {
+            const reservation = await this.cb.fire(() => firstValueFrom(this.httpService.get<Reservation>(
+                `${this.baseUrl}/reservations/${reservationUid}`,
+                { params: { username } },
+            )));
 
-        return reservation.data;
+            return reservation.data;
+        }, { message: 'Reservation Service unavailable' });
     }
 
     async cancel(username: string, reservationUid: string) {
-        const reservation = await firstValueFrom(this.httpService.delete<Reservation>(
-            `${this.baseUrl}/reservations/${reservationUid}/cancel`, 
-            { params: { username } },
-        ));
-        return reservation.data
+        return defaultExceptionWrapper(async () => {
+            const reservation = await firstValueFrom(this.httpService.delete<Reservation>(
+                `${this.baseUrl}/reservations/${reservationUid}/cancel`,
+                { params: { username } },
+            ));
+            return reservation.data
+        }, { message: 'Reservation Service unavailable' });
     }
 
     async cancelCancelling(username: string, reservationUid: string) {
+        return defaultExceptionWrapper(async () => {
         const reservation = await firstValueFrom(this.httpService.delete<Reservation>(
-            `${this.baseUrl}/reservations/${reservationUid}/cancel-cancelling`, 
+            `${this.baseUrl}/reservations/${reservationUid}/cancel-cancelling`,
             { params: { username } },
         ));
         return reservation.data
+        }, { message: 'Reservation Service unavailable' });
+        
     }
 }

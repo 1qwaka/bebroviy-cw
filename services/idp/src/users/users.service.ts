@@ -31,7 +31,7 @@ export class UsersService {
             email: dto.email,
             name: dto.name,
             passwordHash: hash,
-            role: dto.role || UserRole.USER, // По умолчанию User
+            role: dto.role || UserRole.USER,
         });
 
         return this.usersRepository.save(user);
