@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
 import { UserInfoResponse } from '../api/types';
+import { useAuth } from '../context/AuthContext';
 
 export const Profile = () => {
     const [data, setData] = useState<UserInfoResponse | null>(null);
+    const { user } = useAuth();
 
     const fetchProfile = () => {
         apiClient.get<UserInfoResponse>('/me')
@@ -18,7 +20,28 @@ export const Profile = () => {
     const handleCancel = (uid: string) => {
         if (!window.confirm('Отменить бронирование?')) return;
         apiClient.delete(`/reservations/${uid}`)
-            .then(fetchProfile)
+            .then(() => {
+                if (data) {
+                    setData({
+                        ...data,
+                        reservations: data.reservations.map(res => {
+                            if (res.reservationUid !== uid) {
+                                return res;
+                            }
+                            return {
+                                ...res,
+                                status: 'CANCELED',
+                                payment: {
+                                    price: 0,
+                                    ...res.payment,
+                                    status: 'CANCELED',
+                                }
+                            }
+                        })
+                    })
+                }
+                fetchProfile()
+            })
             .catch(alert);
     };
 
@@ -26,6 +49,26 @@ export const Profile = () => {
 
     return (
         <div className="flex flex-col gap-10">
+            <section>
+                <h2 className="text-xl font-semibold mb-4">Мой профиль</h2>
+                <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <span className="block text-sm text-zinc-500 mb-1">Имя</span>
+                            <span className="font-medium text-lg">{user?.name}</span>
+                        </div>
+                        <div>
+                            <span className="block text-sm text-zinc-500 mb-1">Email</span>
+                            <span className="font-medium text-lg">{user?.email}</span>
+                        </div>
+                        <div>
+                            <span className="block text-sm text-zinc-500 mb-1">Логин</span>
+                            <span className="font-medium text-lg">{user?.username}</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section>
                 <h2 className="text-xl font-semibold mb-4">Программа лояльности</h2>
                 <div className="flex gap-12 border-b border-zinc-200 pb-6">

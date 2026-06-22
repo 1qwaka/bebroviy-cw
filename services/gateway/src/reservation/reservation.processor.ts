@@ -22,7 +22,7 @@ export class ReservationProcessor {
             + ` with username: ${job.data.username}; data: ${JSON.stringify(job.data)}`)
 
         await this.cls.run(async () => {
-            this.cls.set('token', job.data.token);
+            this.cls.set('authorization', job.data.token);
         
             try {
                 await this.cancelReservation.execute(job.data);

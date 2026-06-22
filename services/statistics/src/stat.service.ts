@@ -45,23 +45,32 @@ export class StatService {
         const totalCanceled = await this.repo.count({ where: { eventType: StatEventType.RESERVATION_CANCELED } });
 
         const revenueRes = await this.repo.createQueryBuilder('s')
-            .select('SUM(s.price)', 'total')
-            .where('s.eventType = :type', { type: StatEventType.RESERVATION_CREATED })
+            .select(`SUM(CASE 
+                        WHEN s.eventType = :created THEN s.price 
+                        WHEN s.eventType = :canceled THEN -s.price 
+                        ELSE 0 
+                     END)`, 'total')
+            .setParameters({
+                created: StatEventType.RESERVATION_CREATED,
+                canceled: StatEventType.RESERVATION_CANCELED
+            })
             .getRawOne();
-        
-        const revenueMinus = await this.repo.createQueryBuilder('s')
-            .select('SUM(s.price)', 'total')
-            .where('s.eventType = :type', { type: StatEventType.RESERVATION_CANCELED })
-            .getRawOne();
+
 
         const hotelPopularity = await this.repo.createQueryBuilder('s')
             .select('s.hotelUid', 'hotelUid')
-            .addSelect('COUNT(*)', 'count')
-            .where('s.eventType = :type', { type: StatEventType.RESERVATION_CREATED })
+            .addSelect(`SUM(CASE WHEN s.eventType = :created THEN 1 ELSE -1 END)`, 'count')
+            .where('s.eventType IN (:created, :canceled)')
+            .setParameters({
+                created: StatEventType.RESERVATION_CREATED,
+                canceled: StatEventType.RESERVATION_CANCELED
+            })
             .groupBy('s.hotelUid')
+            .having(`SUM(CASE WHEN s.eventType = :created THEN 1 ELSE -1 END) > 0`)
             .orderBy('count', 'DESC')
             .limit(10)
             .getRawMany();
+
 
         const loyaltyDistribution = await this.repo.createQueryBuilder('s')
             .select('s.loyaltyStatus', 'status')
@@ -73,7 +82,7 @@ export class StatService {
         return {
             totalCreated,
             totalCanceled,
-            revenue: parseInt(revenueRes?.total || '0', 10) - parseInt(revenueMinus?.total || '0', 10),
+            revenue: parseInt(revenueRes?.total || '0', 10),
             hotelPopularity: hotelPopularity.map(h => ({ hotelUid: h.hotelUid, count: parseInt(h.count, 10) })),
             loyaltyDistribution: loyaltyDistribution.map(l => ({ status: l.status, count: parseInt(l.count, 10) })),
         };

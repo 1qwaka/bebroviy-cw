@@ -73,7 +73,7 @@ export class CancelReservationUsecase {
              let info = ''
             
             if (axios.isAxiosError(err)) {
-                info += `${err.status} ${err.cause} ${err.code} ${err.message}`
+                info += `${err.status} ${err.cause} ${err.code} ${err.message} ${err.request?.headers}`
             } else {
                 info += String(err)
             }

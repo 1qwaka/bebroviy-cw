@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
 import { StatisticsResponse, PaginationResponse, UserAction } from '../api/types';
+import { useAuth } from '../context/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const COLORS = ['#10B981', '#F59E0B', '#6366F1', '#EC4899', '#8B5CF6'];
 
 export const AdminStats = () => {
+    const { user } = useAuth(); // Достаем данные администратора
     const [stats, setStats] = useState<StatisticsResponse | null>(null);
     const [error, setError] = useState('');
     
-    // Стейты для логов
     const [actionsData, setActionsData] = useState<PaginationResponse<UserAction> | null>(null);
     const [actionsPage, setActionsPage] = useState(1);
 
-    // Стейты для регистрации пользователя
     const [registerForm, setRegisterForm] = useState({
         username: '',
         email: '',
@@ -54,7 +54,14 @@ export const AdminStats = () => {
 
     return (
         <div className="flex flex-col gap-8 pb-10">
-            <h1 className="text-2xl font-semibold">Дашборд Администратора</h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-semibold">Дашборд Администратора</h1>
+                <div className="bg-zinc-50 px-4 py-2 rounded-lg border border-zinc-200 text-sm text-zinc-600 flex gap-4">
+                    <span><strong className="text-black font-medium">Имя:</strong> {user?.name}</span>
+                    <span><strong className="text-black font-medium">Email:</strong> {user?.email}</span>
+                    <span><strong className="text-black font-medium">Логин:</strong> {user?.username}</span>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-6 border border-zinc-200 rounded-lg shadow-sm">
@@ -92,7 +99,7 @@ export const AdminStats = () => {
                 </div>
 
                 <div className="border border-zinc-200 p-6 rounded-lg">
-                    <h2 className="text-lg font-medium mb-4">Распределение по статусам лояльности</h2>
+                    <h2 className="text-lg font-medium mb-4">Распределение бронирований по статусам лояльности</h2>
                     <div className="h-64">
                         {stats.loyaltyDistribution.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
@@ -161,7 +168,6 @@ export const AdminStats = () => {
                 </div>
             </div>
 
-            {/* Блок с историей действий */}
             <div className="mt-4">
                 <h2 className="text-xl font-semibold mb-4">Журнал действий пользователей</h2>
                 <div className="border border-zinc-200 rounded-lg overflow-hidden">
