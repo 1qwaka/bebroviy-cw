@@ -8,7 +8,6 @@ export const Hotels = () => {
     const [page, setPage] = useState(1);
     const [selectedHotel, setSelectedHotel] = useState<HotelResponse | null>(null);
 
-    // Форма бронирования
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [bookingMsg, setBookingMsg] = useState<{ text: string; isError: boolean } | null>(null);
@@ -59,6 +58,7 @@ export const Hotels = () => {
                                 <div className="text-right">
                                     <div className="font-medium">{hotel.price} ₽ / сутки</div>
                                     <div className="text-sm text-zinc-400 mt-1">{'★'.repeat(hotel.stars)}</div>
+                                    <div className="text-xs text-zinc-500 mt-1">Вместимость: {hotel.capacity}</div>
                                 </div>
                             </div>
                         </div>

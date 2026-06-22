@@ -1,4 +1,3 @@
-
 export class Hotel {
     id: number;
     hotelUid: string;
@@ -8,4 +7,5 @@ export class Hotel {
     address: string;
     stars: number;
     price: number;
+    capacity: number;
 }

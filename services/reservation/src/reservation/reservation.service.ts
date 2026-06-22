@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +20,18 @@ export class ReservationService {
         if (!hotel) {
             throw new NotFoundException();
         }
+
+        const overlappingCount = await this.reservationRepo.createQueryBuilder('r')
+            .where('r.hotelId = :hotelId', { hotelId: hotel.id })
+            .andWhere('r.status = :status', { status: PaymentStatus.PAID })
+            .andWhere('r.startDate < :endDate', { endDate: createReservationDto.endDate })
+            .andWhere('r.endDate > :startDate', { startDate: createReservationDto.startDate })
+            .getCount();
+
+        if (overlappingCount >= hotel.capacity) {
+            throw new ConflictException('Нет свободных номеров на выбранные даты');
+        }
+
         const reservation = this.reservationRepo.create({
             ...createReservationDto,
             hotel,
@@ -54,7 +66,7 @@ export class ReservationService {
         if (reservation?.username !== username) {
             throw new ForbiddenException();
         }
-        reservation.status = PaymentStatus.CANCELED;
+        reservation.status = newStatus;
         return this.reservationRepo.save(reservation);
     }
 
@@ -65,5 +77,4 @@ export class ReservationService {
     async cancelCancelling(reservationUid: string, username: string) {
         return this.changeStatus(reservationUid, username, PaymentStatus.PAID);
     }
-
 }

@@ -1,5 +1,5 @@
 name: gateway
-image: 1qwaka/gateway:v1.8
+image: 1qwaka/gateway:v1.10
 containerPort: 8080
 clusterPort: 80
 

@@ -13,6 +13,7 @@ import { CreatereservationUsecase } from 'src/reservation/usecase/create-reserva
 import { CancelReservationPartialError, CancelReservationUsecase } from 'src/reservation/usecase/cancel-reservation';
 import { KafkaService } from 'src/kafka/kafka.service';
 import { ActionName } from '../util/action-name.decorator';
+import axios from 'axios';
 
 @Controller('reservations')
 export class ReservationController {
@@ -150,6 +151,9 @@ export class ReservationController {
         } catch (err: unknown) {
             this.logger.error(`Error Create Reservation: ${(err as any).message}`);
             await Promise.all(rollbacker.rollbackSafe());
+            if (axios.isAxiosError(err) && err.response) {
+                throw new HttpException(err.response.data.message || 'Ошибка бронирования', err.response.status);
+            }
             if (err instanceof HttpException) {
                 throw err;
             }

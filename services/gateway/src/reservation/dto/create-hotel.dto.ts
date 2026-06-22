@@ -1,7 +1,6 @@
 import { IsInt, IsOptional, IsString, MaxLength, Min } from "class-validator";
 
 export class CreateHotelDto {
-
     @IsString()
     @MaxLength(255)
     name: string;
@@ -27,4 +26,8 @@ export class CreateHotelDto {
     @Min(0)
     price: number;
     
+    @IsInt()
+    @Min(1)
+    @IsOptional()
+    capacity?: number;
 }

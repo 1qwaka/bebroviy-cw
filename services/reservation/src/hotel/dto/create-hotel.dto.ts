@@ -26,5 +26,9 @@ export class CreateHotelDto {
     @IsInt()
     @Min(0)
     price: number;
-    
+
+    @IsInt()
+    @Min(1)
+    @IsOptional()
+    capacity?: number;
 }

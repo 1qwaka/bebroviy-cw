@@ -13,6 +13,7 @@ export interface HotelResponse {
     address: string;
     stars: number;
     price: number;
+    capacity: number; 
 }
 
 export interface HotelInfo {
@@ -20,6 +21,7 @@ export interface HotelInfo {
     name: string;
     fullAddress: string;
     stars: number;
+    capacity?: number;
 }
 
 export interface PaymentInfo {
