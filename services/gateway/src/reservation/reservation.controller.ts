@@ -10,7 +10,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { Payment } from 'src/payment/entity/payment.entity';
 import { RollbackScheduler } from 'src/util/rollback-scheduler';
 import { CreatereservationUsecase } from 'src/reservation/usecase/create-reservation';
-import { CancelReservationUsecase } from 'src/reservation/usecase/cancel-reservation';
+import { CancelReservationPartialError, CancelReservationUsecase } from 'src/reservation/usecase/cancel-reservation';
 import { KafkaService } from 'src/kafka/kafka.service';
 import { ActionName } from '../util/action-name.decorator';
 
@@ -79,26 +79,26 @@ export class ReservationController {
     @ActionName('отмена бронирования')
     async delete(@Request() req: any, @Param('uid') reservationUid: string) {
         const username = req.user.username;
-        // try {
-            await this.cancelReservation.execute({ username, reservationUid });
+        try {
+            const result = await this.cancelReservation.execute({ username, reservationUid });
             this.logger.log('Successfully Deleted Reservation')
-            return this.cancelReservation.cancelledReservation;
-        // } catch (err: unknown) {
-        //     this.logger.error('Error Delete Reservation: ' + err)
-        //     await this.retryQueue.add('retry-cancel-reservation', {
-        //         username, 
-        //         reservationUid,
-        //         cancelledReservation: this.cancelReservation.cancelledReservation,
-        //         cancelledPayment: this.cancelReservation.cancelledPayment,
-        //         updatedLoyalty: this.cancelReservation.updatedLoyalty,
-        //     }, {
-        //         attempts: 5,
-        //         backoff: 3000,
-        //         removeOnComplete: true
-        //     });
+            return result.cancelledReservation;
+        } catch (err: unknown) {
+             const partial = err instanceof CancelReservationPartialError ? err.partial : {};
+            this.logger.error('Error Delete Reservation: ' + err)
+            await this.retryQueue.add('retry-cancel-reservation', {
+                username, 
+                reservationUid,
+                token: req.headers.authorization,
+                ...partial,
+            }, {
+                attempts: 5,
+                backoff: 5000,
+                removeOnComplete: true
+            });
 
-        //     return { username, reservationUid };
-        // }
+            return { username, reservationUid };
+        }
     }
     
     @Post()
@@ -148,8 +148,11 @@ export class ReservationController {
                 discount: loyalty?.discount,
             }
         } catch (err: unknown) {
+            this.logger.error(`Error Create Reservation: ${(err as any).message}`);
             await Promise.all(rollbacker.rollbackSafe());
-            if (err instanceof HttpException) throw err;
+            if (err instanceof HttpException) {
+                throw err;
+            }
             throw new InternalServerErrorException("Internal error");
         }
     }

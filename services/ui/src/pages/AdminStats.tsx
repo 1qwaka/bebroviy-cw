@@ -9,8 +9,19 @@ export const AdminStats = () => {
     const [stats, setStats] = useState<StatisticsResponse | null>(null);
     const [error, setError] = useState('');
     
+    // Стейты для логов
     const [actionsData, setActionsData] = useState<PaginationResponse<UserAction> | null>(null);
     const [actionsPage, setActionsPage] = useState(1);
+
+    // Стейты для регистрации пользователя
+    const [registerForm, setRegisterForm] = useState({
+        username: '',
+        email: '',
+        name: '',
+        password: '',
+        role: 'User'
+    });
+    const [registerStatus, setRegisterStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', msg: string }>({ type: 'idle', msg: '' });
 
     useEffect(() => {
         apiClient.get<StatisticsResponse>('/statistics')
@@ -23,6 +34,20 @@ export const AdminStats = () => {
             .then(res => setActionsData(res.data))
             .catch(console.error);
     }, [actionsPage]);
+
+    const handleRegister = (e: React.FormEvent) => {
+        e.preventDefault();
+        setRegisterStatus({ type: 'loading', msg: '' });
+        apiClient.post('/users', registerForm)
+            .then(() => {
+                setRegisterStatus({ type: 'success', msg: `Пользователь ${registerForm.username} успешно создан` });
+                setRegisterForm({ username: '', email: '', name: '', password: '', role: 'User' });
+                setTimeout(() => setRegisterStatus({ type: 'idle', msg: '' }), 3000);
+            })
+            .catch(err => {
+                setRegisterStatus({ type: 'error', msg: err.response?.data?.message || 'Ошибка создания пользователя' });
+            });
+    };
 
     if (error) return <div className="text-red-500 p-8">{error}</div>;
     if (!stats) return <div className="text-zinc-500 p-8">Загрузка статистики...</div>;
@@ -96,6 +121,48 @@ export const AdminStats = () => {
             </div>
 
             <div className="mt-4">
+                <h2 className="text-xl font-semibold mb-4">Регистрация нового пользователя</h2>
+                <div className="border border-zinc-200 p-6 rounded-lg bg-white max-w-2xl">
+                    <form onSubmit={handleRegister} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Логин</label>
+                            <input required type="text" value={registerForm.username} onChange={e => setRegisterForm({...registerForm, username: e.target.value})} className="w-full border border-zinc-300 p-2 text-sm focus:outline-none focus:border-black" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
+                            <input required type="email" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full border border-zinc-300 p-2 text-sm focus:outline-none focus:border-black" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Полное имя</label>
+                            <input required type="text" value={registerForm.name} onChange={e => setRegisterForm({...registerForm, name: e.target.value})} className="w-full border border-zinc-300 p-2 text-sm focus:outline-none focus:border-black" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Роль</label>
+                            <select value={registerForm.role} onChange={e => setRegisterForm({...registerForm, role: e.target.value})} className="w-full border border-zinc-300 p-2 text-sm focus:outline-none focus:border-black bg-white">
+                                <option value="User">User</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-zinc-700 mb-1">Пароль</label>
+                            <input required type="password" value={registerForm.password} onChange={e => setRegisterForm({...registerForm, password: e.target.value})} className="w-full border border-zinc-300 p-2 text-sm focus:outline-none focus:border-black" />
+                        </div>
+                        <div className="md:col-span-2 mt-2">
+                            <button disabled={registerStatus.type === 'loading'} type="submit" className="w-full bg-black text-white py-2.5 text-sm font-medium hover:bg-zinc-800 transition-colors disabled:bg-zinc-400">
+                                Зарегистрировать
+                            </button>
+                            {registerStatus.msg && (
+                                <div className={`text-sm mt-2 text-center ${registerStatus.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+                                    {registerStatus.msg}
+                                </div>
+                            )}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {/* Блок с историей действий */}
+            <div className="mt-4">
                 <h2 className="text-xl font-semibold mb-4">Журнал действий пользователей</h2>
                 <div className="border border-zinc-200 rounded-lg overflow-hidden">
                     <table className="w-full text-left text-sm">
@@ -130,7 +197,6 @@ export const AdminStats = () => {
                         </tbody>
                     </table>
                     
-                    {/* Пагинация */}
                     <div className="bg-white px-4 py-3 border-t border-zinc-200 flex items-center justify-between">
                         <button 
                             onClick={() => setActionsPage(p => p - 1)}

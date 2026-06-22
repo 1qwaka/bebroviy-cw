@@ -7,9 +7,13 @@ export const removeToken = () => localStorage.removeItem(TOKEN_KEY);
 export interface JwtPayload {
     exp: number;
     role?: 'Admin' | 'User';
+    preferred_username?: string;
+    email?: string;
+    name?: string;
+    sub?: string;
     [key: string]: any;
 }
-
+    
 export const parseJwt = (token: string): JwtPayload | null => {
     try {
         const base64Url = token.split('.')[1];

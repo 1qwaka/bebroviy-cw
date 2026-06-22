@@ -48,6 +48,11 @@ export class StatService {
             .select('SUM(s.price)', 'total')
             .where('s.eventType = :type', { type: StatEventType.RESERVATION_CREATED })
             .getRawOne();
+        
+        const revenueMinus = await this.repo.createQueryBuilder('s')
+            .select('SUM(s.price)', 'total')
+            .where('s.eventType = :type', { type: StatEventType.RESERVATION_CANCELED })
+            .getRawOne();
 
         const hotelPopularity = await this.repo.createQueryBuilder('s')
             .select('s.hotelUid', 'hotelUid')
@@ -68,7 +73,7 @@ export class StatService {
         return {
             totalCreated,
             totalCanceled,
-            revenue: parseInt(revenueRes?.total || '0', 10),
+            revenue: parseInt(revenueRes?.total || '0', 10) - parseInt(revenueMinus?.total || '0', 10),
             hotelPopularity: hotelPopularity.map(h => ({ hotelUid: h.hotelUid, count: parseInt(h.count, 10) })),
             loyaltyDistribution: loyaltyDistribution.map(l => ({ status: l.status, count: parseInt(l.count, 10) })),
         };
