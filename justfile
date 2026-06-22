@@ -32,14 +32,21 @@ install-postgres:
     kubectl create configmap postgres-init --from-file=./postgres/
     helm install postgres bitnami/postgresql --set primary.initdb.scriptsConfigMap=postgres-init
 
-# удаляет чарт кафки + связанный volume
+# удаляет чарт кафки 
 remove-kafka:
     helm uninstall kafka
-    kubectl delete pvc -l app.kubernetes.io/instance=kafka
 
 # устанавливает кафку в кластер
 install-kafka:
-    helm install kafka bitnami/kafka --set kraft.enabled=true --set zookeeper.enabled=false --set replicaCount=1 --set listeners.client.protocol=PLAINTEXT --set image.tag=3.7.0-debian-12-r10
+    helm install kafka ./charts/kafka
+
+# устанавливает redis в кластер
+install-redis:
+    helm install redis ./charts/redis
+
+# удаляет redis из кластера
+remove-redis:
+    helm uninstall redis
 
 
 # пробрасывает туннель к посгресу чтобы можно было с хостовой машины, например, с дбивера подключиться

@@ -67,7 +67,7 @@ services:
       context: ./services/statistics
       dockerfile: dockerfile.yml
     container_name: statistics
-    image: 1qwaka/statistics:v1.7
+    image: 1qwaka/statistics:v1.8
     restart: always
     ports:
       - "8110:8080"
@@ -90,7 +90,7 @@ services:
     build:
       context: ./services/ui
       dockerfile: dockerfile.yml
-    image: 1qwaka/ui:v1.7
+    image: 1qwaka/ui:v1.8
     container_name: ui
     restart: always
     ports:
@@ -105,7 +105,7 @@ services:
     build:
       context: ./services/idp
       dockerfile: dockerfile.yml
-    image: 1qwaka/idp:v1.7
+    image: 1qwaka/idp:v1.8
     container_name: idp
     restart: always
     ports:
@@ -131,7 +131,7 @@ services:
     build:
       context: ./services/gateway
       dockerfile: dockerfile.yml
-    image: 1qwaka/gateway:v1.7
+    image: 1qwaka/gateway:v1.8
     container_name: gateway
     restart: always
     ports:
@@ -163,7 +163,7 @@ services:
       context: ./services/loyalty
       dockerfile: dockerfile.yml
     container_name: loyalty
-    image: 1qwaka/loyalty:v1.7
+    image: 1qwaka/loyalty:v1.8
     restart: always
     ports:
       - "8050:8050"
@@ -190,7 +190,7 @@ services:
       context: ./services/payment
       dockerfile: dockerfile.yml
     container_name: payment
-    image: 1qwaka/payment:v1.7
+    image: 1qwaka/payment:v1.8
     restart: always
     ports:
       - "8060:8060"
@@ -217,7 +217,7 @@ services:
       context: ./services/reservation
       dockerfile: dockerfile.yml
     container_name: reservation
-    image: 1qwaka/reservation:v1.7
+    image: 1qwaka/reservation:v1.8
     restart: always
     ports:
       - "8070:8070"

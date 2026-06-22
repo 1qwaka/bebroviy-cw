@@ -1,5 +1,5 @@
 name: reservation
-image: 1qwaka/reservation:v1.7
+image: 1qwaka/reservation:v1.8
 containerPort: 8080
 clusterPort: 80
 

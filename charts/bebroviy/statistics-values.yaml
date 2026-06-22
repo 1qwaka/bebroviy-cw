@@ -1,5 +1,5 @@
 name: statistics
-image: 1qwaka/statistics:v1.7
+image: 1qwaka/statistics:v1.8
 containerPort: 8080
 clusterPort: 80
 

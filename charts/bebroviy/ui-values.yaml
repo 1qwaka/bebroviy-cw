@@ -1,5 +1,5 @@
 name: ui
-image: 1qwaka/ui:v1.7
+image: 1qwaka/ui:v1.8
 containerPort: 80
 clusterPort: 80
 

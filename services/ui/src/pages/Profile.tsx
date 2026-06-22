@@ -3,13 +3,34 @@ import { apiClient } from '../api/client';
 import { UserInfoResponse } from '../api/types';
 import { useAuth } from '../context/AuthContext';
 
+function updateDataWithDeleted(data: UserInfoResponse, deleted: string[]): UserInfoResponse {
+    return {
+        ...data,
+        reservations: data.reservations.map(res => {
+            if (!deleted.includes(res.reservationUid)) {
+                return res;
+            }
+            return {
+                ...res,
+                status: 'CANCELED',
+                payment: {
+                    price: 0,
+                    ...res.payment,
+                    status: 'CANCELED',
+                }
+            }
+        })
+    }
+}
+
 export const Profile = () => {
     const [data, setData] = useState<UserInfoResponse | null>(null);
+    const [deletedReservations, setDeletedReservations] = useState<string[]>([]);
     const { user } = useAuth();
 
     const fetchProfile = () => {
         apiClient.get<UserInfoResponse>('/me')
-            .then(res => setData(res.data))
+            .then(res => setData(updateDataWithDeleted(res.data, deletedReservations)))
             .catch(console.error);
     };
 
@@ -21,6 +42,7 @@ export const Profile = () => {
         if (!window.confirm('Отменить бронирование?')) return;
         apiClient.delete(`/reservations/${uid}`)
             .then(() => {
+                setDeletedReservations([...deletedReservations, uid])
                 if (data) {
                     setData({
                         ...data,

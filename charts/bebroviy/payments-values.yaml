@@ -1,5 +1,5 @@
 name: payment
-image: 1qwaka/payment:v1.7
+image: 1qwaka/payment:v1.8
 containerPort: 8080
 clusterPort: 80
 
